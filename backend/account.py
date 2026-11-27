@@ -36,7 +36,8 @@ from .updates import restart_kino
 # token of its own, the password typed for it on the sending one and kept nowhere. Signing out leaves a device as
 # freshly installed.
 DEVICE_KEYS = {"effects", "quality", "framerate", "display", "thin_client", "sleepend", "autooff", "autoupdate", "audiosync",
-               "volume", "simple", "textsize", "size", "device_name", "updatecheck", "hdmi_inputs", "welcomed", "maxage"}
+               "volume", "simple", "textsize", "size", "device_name", "updatecheck", "hdmi_inputs", "welcomed", "maxage",
+               "phoneremote"}
 # the next person most likely speaks the language too; they go through the first start's steps again (their Jellyfin,
 # their remote)
 KEEP_SIGNED_OUT = (DEVICE_KEYS - {"welcomed"}) | {"language"}

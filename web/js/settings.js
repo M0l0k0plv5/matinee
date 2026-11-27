@@ -291,6 +291,17 @@ Object.assign(views, {
       <h2 class="settings-part">${esc(t("ctlPad"))}</h2><div class="slist">${CTL_PAD.map(row).join("")}</div>
       <h2 class="settings-part">${esc(t("ctlKeyboard"))}</h2><div class="slist">${CTL_KEYBOARD.map(row).join("")}</div></div>`;
   },
+  // The phone remote served from here (backend/phone_remote.py): on or off, and when on its address as a QR code for
+  // the phone's camera, with what to do then
+  async phoneremote() {
+    const p = (await getJson("/settings"))?.phoneRemote ?? {};
+    const qr = p.url ? `<div class="phone-qr"><img src="/phoneremote.svg" alt="${esc(p.url)}"><div><p class="phone-url">${esc(p.url)}</p>
+      <p>${esc(t("phoneRemoteHow"))}</p></div></div>` : `<p class="phone-how">${esc(t("phoneRemoteBusy"))}</p>`;
+    view.innerHTML = `${settingsSide(G.remote, t("phoneRemoteHint"))}<div class="grid-page settings phoneremote"><h1>${esc(t("phoneRemote"))}</h1>
+      <div class="slist"><div class="srow f" tabindex="-1" data-k="phone-on" data-action="phoneremoteon" data-val="${p.on ? "off" : "on"}"
+        data-hint="${esc(t("phoneRemoteHint"))}"><span class="sname">${esc(t("phoneRemote"))}</span><span class="sval">${esc(t(p.on ? "on" : "off"))}</span></div></div>
+      ${p.on ? qr : ""}</div>`;
+  },
   // Licenses and privacy: what Matinee is made of and under which terms, and every place it reaches out to, with whether
   // it does so on this device now (docs/privacy.md says the same at length)
   async legal() {

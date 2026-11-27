@@ -19,7 +19,7 @@ from backend.library import similar_loop
 from backend.live_events import ws_loop
 from backend.tv import own_warm_loop
 from backend.syncing import sync
-from backend import remote_shelf
+from backend import remote_shelf, phone_remote
 from backend.system import (autooff_loop, exit_with_parent, menu_key_loop, players_left_over, sockets_left_over,
     stop_players, ui_watchdog)
 from backend.updates import autoupdate_loop, check_probation, DESKTOP_UPDATES, UPDATES
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     threading.Thread(target=similar_loop, daemon=True).start()
     threading.Thread(target=sync.loop, daemon=True).start()
     threading.Thread(target=remote_shelf.loop, daemon=True).start()
+    phone_remote.apply()  # the phone remote in the home network, if turned on (phone_remote.py)
     threading.Thread(target=lambda: (display.IN_CAGE and bt_stereo_only(), bt_reconnect_loop()), daemon=True).start()
     threading.Thread(target=own_warm_loop, daemon=True).start()
     if os.environ.get("KINO_SESSION") == "1":  # cage only: on a desktop a hung Chromium is the user's to close

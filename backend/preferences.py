@@ -21,7 +21,7 @@ SETTINGS = {"language": ("en", "de"), "quality": ("auto", "original", "20", "8",
             "sleepend": ("stop", "poweroff"), "scrobble": ("on", "off"),
             "moviesound": ("level", "original"), "subsize": ("s", "m", "l", "xl"), "autooff": ("off", "2", "4", "8"),
             "startwith": ("menu", "last", "live"), "autoupdate": ("off", "on"), "updatecheck": ("auto", "manual"),
-            "skipintro": ("off", "offer", "auto"), "substyle": ("outline", "box"),
+            "skipintro": ("off", "offer", "auto"), "substyle": ("outline", "box"), "phoneremote": ("off", "on"),
             "spoilers": ("show", "hide"), "sounds": ("off", "low", "medium", "high"),
             "soundkind": ("click", "tap", "wood", "glass", "soft"), "badges": ("all", "missing", "off"),
             "effects": ("auto", "full", "calm", "light"), "textsize": ("normal", "large"), "motion": ("full", "less"), "size": ("auto", "tv", "desk"),
@@ -30,7 +30,7 @@ SETTINGS = {"language": ("en", "de"), "quality": ("auto", "original", "20", "8",
 # audio in Matinee's language, no subtitles until turned on in the player (for that playback)
 DEFAULTS = {"screensaver": 10, "ask": 3, "audio": "auto", "subtitles": "off", "sublang": "auto", "framerate": "on",
             "saverweather": "on", "sleepend": "stop", "scrobble": "on",
-            "moviesound": "level", "subsize": "m", "autooff": "off", "startwith": "menu", "autoupdate": "off", "updatecheck": "auto",
+            "moviesound": "level", "subsize": "m", "autooff": "off", "startwith": "menu", "autoupdate": "off", "updatecheck": "auto", "phoneremote": "off",
             "skipintro": "offer", "substyle": "outline", "spoilers": "show", "sounds": "medium", "soundkind": "click",
             "badges": "all", "effects": "auto", "textsize": "normal", "motion": "full",
             "size": "auto", "sync": "on", "maxage": "off"}
@@ -112,6 +112,8 @@ def save_settings(changes):
         tv.own_forget()
     if "display" in changes:
         display.apply_display(str(changes["display"]))
+    if "phoneremote" in changes:
+        phone_remote.apply()
     syncing.sync.changed(CONF_FILE)
 
 
@@ -178,4 +180,4 @@ def set_simple(body):
 
 # The parts after this one, loaded now that all of it is there: the next first, which loads the one after
 # it the same way, so each finds the ones before it complete as it loads
-from . import display, forecast, tv, syncing, account  # noqa: E402,F401
+from . import display, forecast, tv, syncing, account, phone_remote  # noqa: E402,F401

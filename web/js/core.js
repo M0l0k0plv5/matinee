@@ -322,7 +322,7 @@ const SET_ICONS = {
   "set-badges": [G.seal, "green"], "set-skipintro": [G.skip, "orange"], "set-moviesound": [G.level, "pink"],
   "set-framerate": [G.film, "purple"], "set-libcheck": [G.check, "teal"],
   "tvch": [ICON_TV, "blue"],
-  "set-controls": [G.remote, "blue"], "set-simple": [G.lock, "gray"], "set-maxage": [G.shield, "green"], "set-legal": [G.seal, "gray"], "set-diagnose": [G.gauge, "green"], "set-share": [G.film, "orange"], "set-support": [G.question, "teal"], "set-welcome": [G.sparkle, "purple"], "set-size": [G.screen, "blue"], "set-textsize": [G.textSize, "blue"], "set-motion": [G.motion, "blue"],
+  "set-controls": [G.remote, "blue"], "set-phoneremote": [G.remote, "indigo"], "phone-on": [G.remote, "indigo"], "set-simple": [G.lock, "gray"], "set-maxage": [G.shield, "green"], "set-legal": [G.seal, "gray"], "set-diagnose": [G.gauge, "green"], "set-share": [G.film, "orange"], "set-support": [G.question, "teal"], "set-welcome": [G.sparkle, "purple"], "set-size": [G.screen, "blue"], "set-textsize": [G.textSize, "blue"], "set-motion": [G.motion, "blue"],
 };
 // a settings line's symbol: its own, or that of the lines of its kind (each channel, each device, …)
 const iconKey = (raw) => raw.startsWith("tvch-") ? "tvch" : raw.startsWith("ctl-") ? "set-controls" : raw.startsWith("pin-") ? "set-simple"

@@ -243,6 +243,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, json.dumps(load_hidden()).encode())
         if self.path == "/diagnose":  # Settings → System → Status
             return self.send(200, json.dumps({"lines": diagnose.status_lines()}).encode())
+        if self.path == "/phoneremote.svg":  # the phone remote's address as a QR code (phone_remote.py)
+            svg = phone_remote.qr_svg()
+            return self.send(200, svg, "image/svg+xml", [("Cache-Control", "no-store")]) if svg else self.send(404, b"", "text/plain")
         if self.path == "/settings":
             server_version = jellyfin_version()
             return self.send(200, json.dumps({"language": core.LANG, "quality": playback.QUALITY, "server": core.SERVER,
@@ -266,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
                                               "podfetch": {"server": services.PF.get("server"), "username": services.PF.get("username")} if services.PF.get("server") else None,
                                               "display": str(conf.get("display", "auto")),
                                               "displayModes": display_choices() if display.IN_CAGE else None,
-                                              "bluetooth": bluetooth_there(), "wifi": wifi_there(), "hdmi": hdmi_state(),
+                                              "bluetooth": bluetooth_there(), "wifi": wifi_there(), "hdmi": hdmi_state(), "phoneRemote": phone_remote.remote_state(),
                                               "system": display.IN_CAGE, "volume": sink_volume() if display.IN_CAGE else None, "simple": simple_on(),
                                               "section": state.get("section")}).encode())
         name = "index.html" if self.path in ("/", "") else self.path.lstrip("/").split("?")[0]

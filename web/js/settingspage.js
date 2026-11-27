@@ -52,6 +52,7 @@ Object.assign(views, {
       ${s.hdmi?.available ? line("set-hdmi", t("hdmi"), esc(s.hdmi.inputs.map((x) => x.name).join(", ") || t("hdmiNone")), `data-action="hdmi"`, t("hdmiHint")) : ""}
       ${s.bluetooth ? line("set-bluetooth", t("setRemotes"), "", `data-action="bluetooth"`, t("btHint")) : ""}
       ${line("set-controls", t("controls"), "", `data-action="controls"`, t("controlsHint"))}
+      ${SIMPLE ? "" : line("set-phoneremote", t("phoneRemote"), esc(t(s.phoneRemote?.on ? "on" : "off")), `data-action="phoneremote"`, t("phoneRemoteHint"))}
       ${SIMPLE ? "" : open("account", t("setAccount"), s.username ?? "", t("setAccountHint"))}
       ${open("system", t("setSystem"), "", t("setSystemHint"))}`)}
       ${SIMPLE ? "" : part(t("setApps"), `

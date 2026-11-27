@@ -1260,7 +1260,7 @@ class UiTest(UiBase):
 
     def test_settings_parts_screensaver_and_versions(self):
         self.open_settings()  # from the main menu: its parts
-        self.assertEqual(self.texts(".srow .sname"), ["General", "Video and Audio", "Devices", "Using Matinee", "Account", "System", "Movies & Shows",
+        self.assertEqual(self.texts(".srow .sname"), ["General", "Video and Audio", "Devices", "Using Matinee", "Phone Remote", "Account", "System", "Movies & Shows",
                                                      "Music", "Audiobooks", "Podcasts"],
                          "what is changed most often first, the account and the system last; the apps as in the main menu")
         self.assertEqual(self.texts(".settings-part"), ["Apps"])
@@ -1664,6 +1664,26 @@ class UiTest(UiBase):
         self.assertEqual(self.b.js("fxNow()"), now, "only shown, not set")
         self.b.key("ArrowDown")
         self.b.wait_js("!$('.settings-side.fx')", msg="the symbol again on the next line")
+
+    def test_phone_remote_page(self):
+        """The phone remote turned on in the settings: its address as a QR code to scan; off again, gone."""
+        self.open_settings("general")
+        self.b.js("focusEl($('[data-k=set-phoneremote]'))")
+        self.assertEqual(self.b.js("$('[data-k=set-phoneremote] .sval').textContent"), "Off")
+        self.b.key("Enter")
+        self.b.wait_js("current.name === 'phoneremote' && $('[data-k=phone-on]')", msg="its page")
+        self.assertFalse(self.b.js("!!$('.phone-qr')"), "no code while off")
+        try:
+            self.b.key("Enter")
+            self.b.wait_js("$('.phone-qr img')?.complete && $('.phone-qr img').naturalWidth > 0", msg="the code, once on")
+            url = self.b.js("$('.phone-url').textContent")
+            self.assertRegex(url, r"^http://127\.0\.0\.1:\d+/$")
+            self.assertGreater(self.b.js("$('.phone-qr img').getBoundingClientRect().width"), 250, "large enough to scan across the room")
+            self.assertEqual(self.b.js("$('[data-k=phone-on] .sval').textContent"), "On")
+            self.assertEqual(self.b.js("document.activeElement.dataset.k"), "phone-on", "the focus stays on the switch")
+        finally:
+            self.b.key("Enter")
+            self.b.wait_js("!$('.phone-qr') && $('[data-k=phone-on] .sval').textContent === 'Off'", msg="off again")
 
     def test_controls_page(self):
         self.open_settings("general")
@@ -4391,6 +4411,7 @@ class UiFocusTest(UiBase):
         ("one's own channels", "navigate('ownchannels')", "current.name === 'ownchannels' && $('.grid .card')"),
         ("podcasts", "navigate('podcasts')", "current.name === 'podcasts' && $('#view .f')"),
         ("controls", "navigate('controls')", "current.name === 'controls' && $('#view .f')"),
+        ("phone remote", "navigate('phoneremote')", "current.name === 'phoneremote' && $('#view .f')"),
         ("Bluetooth", "navigate('bluetooth', {})", "current.name === 'bluetooth' && $('#view .f')"),
         *((f"settings, {part}", f"navigate('settings', {{ part: '{part}' }})", "current.name === 'settings' && $('.srow')")
           for part in ("basics", "subs", "saver", "movies", "navidrome", "books", "podcasts", "account", "system", "update")),

@@ -17,8 +17,16 @@ minutes, with small covers in them, and only while "Same on Every Device" is on;
 other servers goes there. A tap sends the kind and the id, and Matinee gets the rest from its own servers.
 
 It is a page of its own, without dependencies, that talks to Jellyfin only: nothing to install on the phone, and
-nothing on the TV computer is opened to the network. Open it in Safari and choose Share → Add to Home Screen: it then
+nothing on the TV computer is opened to the network unless it serves the page itself (below). Open it in Safari and choose Share → Add to Home Screen: it then
 opens full screen, like an app.
+
+## Served by Matinee itself
+
+The easiest way: Settings → Phone Remote → On. Matinee then serves this folder in the home network on port 8767 and shows
+its address as a QR code; the phone's camera opens it, and Share → Add to Home Screen keeps it. Only these files and the
+Jellyfin address can be reached there, nothing else of Matinee (backend/phone_remote.py); off, nothing listens. It comes
+over plain HTTP, so anyone in the same network could change it on its way: in a home network that is fine, otherwise
+put it on a server of one's own as below.
 
 ## Putting it on a server
 

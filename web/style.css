@@ -493,6 +493,12 @@ body:has(#nowbar:not([hidden])) .settings { padding-bottom: var(--sp-28); } /* a
 .fx-preview[data-fx="light"] .fx-dock { backdrop-filter: none; background: rgba(56, 51, 46, 0.85); }
 .fx-preview:is([data-fx="light"], [data-fx="calm"]) .fx-art { display: none; } /* Calm: the glass stays, the picture not */
 .settings .about { margin: var(--sp-8) var(--pad) var(--sp-6); }
+/* the phone remote's address as a QR code, large enough for a phone's camera across the room */
+.phone-qr { display: flex; gap: var(--sp-8); align-items: center; margin: var(--sp-8) var(--pad) var(--sp-6); }
+.phone-qr img { width: min(36vh, 420px); aspect-ratio: 1; border-radius: var(--sp-2); flex: none; }
+.phone-qr p, .settings .phone-how { color: var(--muted); max-width: 40ch; margin: 0 0 var(--sp-4); }
+.phone-qr .phone-url { color: inherit; font-size: 1.3em; overflow-wrap: anywhere; }
+.settings .phone-how { margin: var(--sp-8) var(--pad); }
 .about { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-2) var(--sp-8); margin: var(--sp-8) var(--pad); color: var(--muted); font-size: var(--t-callout); }
 .about dt { color: var(--faint); }
 .about dd { margin: 0; }

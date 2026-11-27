@@ -97,6 +97,8 @@ async function activate(el) {
   else if (a === "partsearch") navigate(PART_SEARCH[el.dataset.val], { q: "" });
   else if (a === "settingstile") navigate("settings", { part: settingsPart() });
   else if (a === "controls") navigate("controls");
+  else if (a === "phoneremote") navigate("phoneremote");
+  else if (a === "phoneremoteon") changeSetting("phoneremote", el.dataset.val, el.dataset.k);
   else if (a === "legal") navigate("legal");
   else if (a === "support") navigate("support");
   else if (a === "supportsend") supportSend(el);

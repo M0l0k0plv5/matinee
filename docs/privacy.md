@@ -18,6 +18,7 @@ What it knows (the servers, sign-ins, settings, what was watched where) stays on
 | Network check | DNS lookup of `example.com` (`KINO_NET_CHECK_HOST`) | when a server does not answer | nothing is sent to it; the DNS resolver in use sees the lookup |
 | Finding Jellyfin | the home network (UDP broadcast, port 7359) | on the sign-in page | stays in the local network |
 | Moving an account | another Matinee in the same network or tailnet | only when started in Settings → Account | stays between the two devices |
+| Phone remote | phones in the home network open its page here (port 8767) | only when turned on in Settings → Phone Remote | they get the remote's files and Jellyfin's address, nothing else of Matinee; the remote then talks to Jellyfin |
 | Report to support | the address in `deploy/support-url` (whoever sells and supports Matinee) | only when Send is chosen in Settings → System → Report to Support | logs, system details and the settings without passwords or tokens (see [setup](setup.md#a-report-to-support)); the IP address |
 | Jellyfin on this device | Docker Hub (`docker.io`) for its image, once a day; the metadata providers Jellyfin uses (TMDB, MusicBrainz, …) for titles, posters and descriptions | only with `deploy/server.sh` | the IP address, and which titles are looked up (Jellyfin's own, see its documentation) |
 | Tailscale | Tailscale's coordination servers | only if installed, under your own account | as Tailscale describes it |

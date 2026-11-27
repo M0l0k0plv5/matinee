@@ -217,6 +217,14 @@ else
 fi
 
 # systemd-journal: Matinee's log (journalctl -t kino) readable without sudo, also over SSH
+# Fedora and openSUSE: firewalld lets nobody in by itself; the phone remote, when turned on in the settings, is
+# served on 8767 (backend/phone_remote.py). Nothing listens there while it is off
+if command -v firewall-cmd >/dev/null 2>&1 && sudo firewall-cmd --state >/dev/null 2>&1; then
+  echo "==> Opening the firewall for the phone remote (8767/tcp)"
+  sudo firewall-cmd --permanent --add-port=8767/tcp >/dev/null
+  sudo firewall-cmd --reload >/dev/null
+fi
+
 echo "==> Giving $USER_NAME access to graphics, input devices, audio and the system log"
 sudo usermod -aG video,input,audio,systemd-journal "$USER_NAME"
 

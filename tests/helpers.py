@@ -134,7 +134,7 @@ class Backend:
         self.port = free_port()
         self.env = dict(os.environ, XDG_CONFIG_HOME=str(self.tmp / "config"), XDG_RUNTIME_DIR=str(self.runtime),
                         XDG_CACHE_HOME=str(self.tmp / "cache"), XDG_DATA_HOME=str(self.tmp / "data"), KINO_PORT=str(self.port), KINO_RETRY_MAX="1", KINO_NATURAL_SCROLL="0", KINO_SIZE_AUTO="tv",
-                        KINO_FLUSH_SECONDS="1", KINO_SIMILAR_PAUSE="0", MANGOHUD="0",
+                        KINO_FLUSH_SECONDS="1", KINO_SIMILAR_PAUSE="0", MANGOHUD="0", KINO_PHONE_PORT="0", KINO_PHONE_HOST="127.0.0.1",
                         # one's own channels made when a test asks for them, not ahead of it
                         KINO_OWN_WARM_AFTER="86400",
                         KINO_EXIT_WITH_PARENT="1", KINO_HANDOFF_ACK_WAIT="2", KINO_TAILSCALE="/nonexistent", KINO_TIMEDATECTL="/nonexistent", KINO_DESKTOP_UPDATES="0")  # never the developer's own Tailscale
