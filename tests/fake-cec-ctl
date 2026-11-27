@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""cec-ctl stand-in for the tests: an adapter on a TV's HDMI input, as in FAKE_CEC_STATE (JSON: {"pa": Matinee's physical
+address, "f.f.f.f" without a TV; "claimed": set up as a player; "shown": the address the TV shows}); what it is asked
+is appended to FAKE_CEC_LOG. Only the calls Matinee makes."""
+import json
+import os
+import sys
+
+state_file = os.environ["FAKE_CEC_STATE"]
+state = json.load(open(state_file))
+args = sys.argv[1:]
+with open(os.environ.get("FAKE_CEC_LOG", os.devnull), "a") as log:
+    log.write(json.dumps(args) + "\n")
+if args[:1] == ["-d"]:
+    args = args[2:]
+
+
+def save():
+    json.dump(state, open(state_file, "w"))
+
+
+def info():
+    print("Driver Info:\n\tDriver Name                : fake")
+    print(f"\tPhysical Address           : {state['pa']}")
+    print(f"\tLogical Addresses          : {1 if state.get('claimed') else 0}")
+
+
+tv = state["pa"] != "f.f.f.f"
+if not args:
+    info()
+elif args[:1] == ["--playback"]:
+    state["claimed"] = True
+    save()
+    info()
+elif args[:2] == ["--to", "0"] and args[2:] == ["--image-view-on"]:
+    sys.exit(0 if tv else 1)
+elif args[:2] == ["--to", "15"] and args[2] in ("--set-stream-path", "--active-source") and args[3].startswith("phys-addr="):
+    if not tv or not state.get("claimed"):
+        sys.exit("Transmit failed")
+    state["shown"] = args[3].split("=", 1)[1]
+    save()
+else:
+    sys.exit(f"fake-cec-ctl: not known: {args}")

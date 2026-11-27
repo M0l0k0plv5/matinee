@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Sets the display mode in cage before Matinee's window opens, from "display" in config.json (or the settings):
+
+    "auto"            (default) the screen's own mode, unless it is below 50 Hz (a 4K screen on an HDMI 1.4
+                      computer only gets 30): then the highest refresh rate at 1080p or more
+    "native"          always the screen's own mode
+    "1920x1080@120"   exactly this mode
+
+Needs wlr-randr; without it the mode stays as it is.
+"""
+import shutil
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True  # no __pycache__ next to the scripts
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backend import core, display  # noqa: E402  (only reads the config, starts nothing)
+
+if not shutil.which("wlr-randr"):
+    sys.exit("display-mode: wlr-randr is not installed, the display mode stays as it is")
+try:
+    display.apply_display(str(core.conf.get("display", "auto")))
+except ValueError:
+    sys.exit(f"display-mode: {core.conf.get('display')!r} is not a mode like 1920x1080@120")

@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""The README's pictures: Matinee against the fake Jellyfin, with made-up titles and pictures drawn by Chromium (nothing
+from a real library), in headless Chromium at 1920×1080. Written to docs/screenshots/ as JPEG.
+
+    tests/make-screenshots
+"""
+import base64
+import html
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from helpers import ROOT, Backend, Chromium, wait_for  # noqa: E402
+from mockjf import TICKS, MockJellyfin  # noqa: E402
+
+OUT = ROOT / "docs" / "screenshots"
+FONT = ROOT / "web" / "fonts" / "Allo.ttf"
+
+MOVIES = [  # name, year, minutes, colours (the ground, its light: muted, as a film's poster at night), what it is about
+    ("The Last Ferry", 2019, 112, ("#1b2430", "#9a8f7e"), "A ferry captain on her final crossing takes on one passenger too many."),
+    ("Glass Harbor", 2021, 98, ("#14262a", "#7f9c9a"), "In a town of glassblowers, a missing apprentice leaves only a cracked vase behind."),
+    ("Quiet Orbit", 2023, 124, ("#121420", "#6f7590"), "Two engineers keep a failing space station alive while Earth stops answering."),
+    ("Paper Lanterns", 2018, 105, ("#24181a", "#a8846a"), "A festival night, a lost child and the old man who knows every street."),
+    ("Salt and Cedar", 2020, 117, ("#1d211a", "#8c8a6e"), "Three sisters return to the family sawmill to decide what to keep."),
+    ("The Night Garden", 2022, 101, ("#121a1a", "#6e8f86"), "A botanist discovers that her greenhouse only blooms after midnight."),
+    ("Copper Coast", 2017, 131, ("#22190f", "#a07a58"), "A mining town, a strike and a radio station that will not go quiet."),
+    ("A Field of Kites", 2024, 94, ("#1c2226", "#a3a58c"), "A summer on the dunes, told by the kites the children flew."),
+    ("Northbound", 2016, 109, ("#18181e", "#8e8796"), "A night train, a stolen letter and twelve hours to the border."),
+    ("Winter Light Hotel", 2021, 126, ("#161c26", "#b0a690"), "The last guests of a mountain hotel are snowed in with its secrets."),
+    ("The Mapmaker's Daughter", 2019, 115, ("#1f1c19", "#9b8e74"), "She inherits a map of an island no one else has ever found."),
+    ("Low Tide", 2023, 89, ("#13202a", "#8796a0"), "When the sea pulls back for a day, a village finds what it had buried."),
+]
+SHOW = ("The Lighthouse Keepers", ("#161d24", "#8a96a0"),
+        "Four keepers, one lighthouse and a coast that keeps its stories.")
+EPISODES = ["Arrival", "Fog Bank", "The Signal", "Storm Season"]
+COLLECTIONS = {"bx1": "The Ferry Stories", "bx2": "Coastal Nights"}
+
+
+def made_up_library(lib):
+    """Titles, years, lengths and descriptions made up for the pictures; a few begun or watched, for the rows."""
+    now = time.strftime("%Y-%m-%dT%H:%M:%S.0000000Z", time.gmtime())
+    for i, (name, year, minutes, _, about) in enumerate(MOVIES, 1):
+        it = lib.items[f"m{i}"]
+        it.update(Name=name, SortName=name.lower(), ProductionYear=year, Overview=about, RunTimeTicks=minutes * 60 * TICKS,
+                  OfficialRating=("12", "16", "6", "12")[i % 4], CommunityRating=round(6.4 + (i * 0.37) % 2, 1),
+                  ImageTags={"Primary": "p"})
+    s = lib.items["s1"]
+    s.update(Name=SHOW[0], Overview=SHOW[2], ProductionYear=2022, OfficialRating="12")
+    for iid, it in lib.items.items():
+        if it.get("SeriesId") == "s1":
+            it["SeriesName"] = SHOW[0]
+            if it["Type"] == "Episode" and it.get("IndexNumber") and it.get("ParentIndexNumber"):
+                it["Name"] = EPISODES[(it["IndexNumber"] - 1) % len(EPISODES)]
+                if it["IndexNumber"] == 2:  # the others keep what the fake one gives them, or none
+                    it["Overview"] = "The keepers face the coast's longest night."
+                it["RunTimeTicks"] = 48 * 60 * TICKS
+    view = lib.view  # no cast: the fake one's names are placeholders
+    lib.view = lambda iid, full=False: {k: v for k, v in view(iid, full).items() if k != "People"}
+    for bid, name in COLLECTIONS.items():
+        lib.items[bid].update(Name=name, SortName=name.lower())
+    begun = {"m3": 0.42, "e12": 0.3, "m8": 0.65}
+    for iid, part in begun.items():
+        lib.userdata[iid].update(PlaybackPositionTicks=int(lib.items[iid]["RunTimeTicks"] * part), LastPlayedDate=now)
+    for iid in ("e11", "m5", "m10"):
+        lib.userdata[iid].update(Played=True, PlayCount=1, LastPlayedDate=now)
+
+
+def colours(item_id):
+    if item_id.startswith("m") and item_id[1:].isdigit() and int(item_id[1:]) <= len(MOVIES):
+        return MOVIES[int(item_id[1:]) - 1][3]
+    if item_id in ("s1", "se1", "se2", "se0") or item_id.startswith("e"):
+        return SHOW[1]
+    return ("#1c1b1e", "#86818a")
+
+
+def title_of(lib, item_id):
+    it = lib.items.get(item_id, {})
+    return it.get("SeriesName") if it.get("Type") in ("Episode", "Season") else it.get("Name", "")
+
+
+# the pictures, drawn by a Chromium of their own (one at a time: Jellyfin's fake asks from several threads): a dark ground,
+# a low light on a horizon as in a film's still at dusk, a soft grain; a poster with its title and year, as real ones
+PICTURE = """<!doctype html><html><head><style>
+@font-face { font-family: Allo; src: url("FONT"); font-weight: 100 900; }
+html, body { margin: 0; width: Wpx; height: Hpx; overflow: hidden; background: GROUND; }
+.light { position: absolute; left: Xpct; top: Ypct; width: Rpx; height: Rpx; margin: calc(Rpx / -2); border-radius: 50%;
+  background: radial-gradient(circle, LIGHT 0%, transparent 68%); opacity: 0.55; filter: blur(BLURpx); }
+.land { position: absolute; left: 0; right: 0; bottom: 0; height: LANDpct;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.85)); }
+.grain { position: absolute; inset: 0; opacity: 0.08; background:
+  repeating-radial-gradient(circle at 30% 40%, #fff 0 1px, transparent 1px 3px); mix-blend-mode: overlay; }
+.text { position: absolute; left: 8%; right: 8%; bottom: 7%; font-family: Allo; color: #efe8dc; text-align: center; }
+.text b { display: block; font-weight: 600; font-size: TITLEpx; letter-spacing: 0.14em; line-height: 1.15; text-transform: uppercase; }
+.text i { display: block; margin-top: 0.8em; font-style: normal; font-weight: 400; font-size: SMALLpx; letter-spacing: 0.3em; opacity: 0.6; }
+</style></head><body><div class="light"></div><div class="land"></div><div class="grain"></div>TEXT</body></html>"""
+drawing = threading.Lock()
+painter = None
+
+
+def picture(lib, tmp, item_id, kind):
+    """Drawn once for each item and kind, kept in tmp."""
+    global painter
+    if kind == "Logo":
+        return None  # the title as text, as for most films
+    path = tmp / f"{item_id}-{kind}.png"
+    with drawing:
+        if not path.exists():
+            ground, light = colours(item_id)
+            it = lib.items.get(item_id, {})
+            poster = kind == "Primary" and it.get("Type") in ("Movie", "Series", "BoxSet")
+            w, h = (600, 900) if poster else (1280, 720)
+            seed = sum(map(ord, item_id))
+            title = html.escape(title_of(lib, item_id))
+            year = it.get("ProductionYear") or ""
+            text = f'<div class="text"><b>{title}</b><i>{year}</i></div>' if poster else ""
+            page = PICTURE
+            for k, v in (("FONT", FONT.as_uri()), ("GROUND", ground), ("LIGHT", light), ("TEXT", text),
+                         ("Wpx", f"{w}px"), ("Hpx", f"{h}px"), ("Xpct", f"{25 + seed % 50}%"), ("Ypct", f"{38 + seed % 14}%"),
+                         ("Rpx", f"{int(w * (1.1 if poster else 0.8))}px"), ("BLURpx", f"{w // 40}px"),
+                         ("LANDpct", f"{40 + seed % 12}%"), ("TITLEpx", "46px"), ("SMALLpx", "22px")):
+                page = page.replace(k, v)
+            (tmp / "picture.html").write_text(page)
+            if painter is None:
+                painter = Chromium("about:blank")
+            painter.call("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=1, mobile=False)
+            painter.call("Page.navigate", url=(tmp / "picture.html").as_uri())
+            wait_for(lambda: painter.js("document.readyState === 'complete' && document.fonts.status === 'loaded'"), msg="drawn")
+            png = painter.call("Page.captureScreenshot", format="png", clip={"x": 0, "y": 0, "width": w, "height": h, "scale": 1})
+            path.write_bytes(base64.b64decode(png["data"]))
+    return path.read_bytes()
+
+
+def main():
+    tmp = Path(tempfile.mkdtemp(prefix="kino-shots-"))
+    mock = MockJellyfin()
+    made_up_library(mock.lib)
+    mock.image = lambda item_id, kind: picture(mock.lib, tmp, item_id, kind)
+    mock.start()
+    backend = Backend(mock.url, conf={"sounds": "off", "screensaver": "off"}).start()
+    OUT.mkdir(parents=True, exist_ok=True)
+    browser = Chromium(backend.url)
+    try:
+        wait_for(lambda: browser.js("!!document.querySelector('[data-k=menu-next]')"), timeout=20, msg="main menu")
+        steps = sys.argv[1:] or ["wait:4", "shot:main-menu", "ArrowRight", "wait:2", "Enter", "wait:4",
+                                 "ArrowDown", "wait:3", "shot:home",
+                                 "Enter", "wait:4", "shot:movie"]
+        for step in steps:
+            if step.startswith("shot:"):
+                png = base64.b64decode(browser.call("Page.captureScreenshot", format="png")["data"])
+                (tmp / "shot.png").write_bytes(png)
+                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(tmp / "shot.png"), "-q:v", "3",
+                                str(OUT / f"{step[5:]}.jpg")], check=True)
+                print("wrote", OUT / f"{step[5:]}.jpg")
+            elif step.startswith("wait:"):
+                time.sleep(float(step[5:]))
+            elif step.startswith("js:"):
+                browser.js(step[3:])
+            else:
+                browser.key(step, pause=1)
+    finally:
+        browser.close()
+        if painter:
+            painter.close()
+        backend.stop()
+        mock.stop()
+        shutil.rmtree(tmp, ignore_errors=True)  # the pictures drawn for it
+
+
+if __name__ == "__main__":
+    main()

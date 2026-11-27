@@ -1,0 +1,43 @@
+# The media servers Matinee uses, on a NAS (Synology Container Manager, QNAP Container Station, Unraid's Compose plugin)
+# or any computer with Docker or Podman. Set MEDIA to the folder with the films (a .env file beside this one:
+# MEDIA=/volume1/media), then: docker compose up -d. Music and audiobooks are optional:
+#   docker compose --profile music --profile books up -d
+# Matinee finds Jellyfin by itself on the home network (its discovery, UDP 7359): the host network below.
+# See docs/server.md.
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    network_mode: host  # port 8096, and the discovery Matinee finds it by
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - ${MEDIA:-/volume1/media}:/media:ro
+    # An Intel or AMD graphics chip in the NAS converts videos the TV computer cannot play; without one, leave out
+    # the two lines below (Synology: only models with an Intel processor have it)
+    # devices:
+    #   - /dev/dri:/dev/dri
+    restart: unless-stopped
+
+  navidrome:  # music, for Matinee's Music
+    profiles: [music]
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    ports:
+      - "4533:4533"
+    volumes:
+      - ./navidrome:/data
+      - ${MEDIA:-/volume1/media}/${MUSIC:-Music}:/music:ro
+    restart: unless-stopped
+
+  audiobookshelf:  # audiobooks and podcasts' episodes, for Matinee's Audiobooks
+    profiles: [books]
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    ports:
+      - "13378:80"
+    volumes:
+      - ./audiobookshelf/config:/config
+      - ./audiobookshelf/metadata:/metadata
+      - ${MEDIA:-/volume1/media}/${BOOKS:-Audiobooks}:/audiobooks:ro
+    restart: unless-stopped

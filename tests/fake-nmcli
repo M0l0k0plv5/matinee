@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""nmcli stand-in for the tests: NetworkManager with a Wi-Fi device and the networks in FAKE_NM_STATE (JSON:
+{"networks": [{"ssid", "signal", "security", "password"}], "known": [ssid], "active": ssid}); what it is asked is
+appended to FAKE_NM_LOG. Only the terse (-t) calls Matinee makes."""
+import json
+import os
+import sys
+
+state_file = os.environ["FAKE_NM_STATE"]
+state = json.load(open(state_file))
+args = sys.argv[1:]
+with open(os.environ.get("FAKE_NM_LOG", os.devnull), "a") as log:
+    log.write(json.dumps(args) + "\n")
+
+
+def esc(v):
+    return str(v).replace("\\", "\\\\").replace(":", "\\:")
+
+
+def save():
+    json.dump(state, open(state_file, "w"))
+
+
+if args[:1] == ["-t"]:
+    args = args[1:]
+if args[:1] == ["--wait"]:
+    args = args[2:]
+if args[:2] == ["-f", "TYPE"] and args[2:] == ["device"]:
+    print("wifi\nethernet\nloopback")
+elif args[:2] == ["-f", "NAME,TYPE"] and args[2:4] == ["connection", "show"]:
+    for name in state.get("known", []):
+        print(f"{esc(name)}:802-11-wireless")
+    print("Wired connection 1:802-3-ethernet")
+elif args[:1] == ["-f"] and args[2:5] == ["device", "wifi", "list"]:
+    for n in state["networks"]:
+        print(":".join([("*" if n["ssid"] == state.get("active") else " "), esc(n["ssid"]), str(n["signal"]),
+                        esc(n.get("security", ""))]))
+elif args[:3] == ["connection", "up", "id"]:
+    if args[3] not in state.get("known", []):
+        sys.exit("Error: unknown connection")
+    state["active"] = args[3]
+    save()
+    print(f"Connection successfully activated")
+elif args[:3] == ["device", "wifi", "connect"]:
+    ssid = args[3]
+    net = next((n for n in state["networks"] if n["ssid"] == ssid), None)
+    if not net:
+        sys.exit(f"Error: No network with SSID '{ssid}' found.")
+    given = args[5] if args[4:5] == ["password"] else None
+    if net.get("password") and given != net["password"]:
+        sys.stderr.write("Error: Connection activation failed: Secrets were required, but not provided.\n")
+        state.setdefault("known", []).append(ssid)  # NetworkManager keeps the connection made all the same
+        save()
+        sys.exit(4)
+    state.setdefault("known", []).append(ssid)
+    state["active"] = ssid
+    save()
+    print(f"Device 'wlan0' successfully activated")
+elif args[:3] == ["connection", "delete", "id"]:
+    if args[3] not in state.get("known", []):
+        sys.exit(10)
+    state["known"] = [k for k in state["known"] if k != args[3]]
+    if state.get("active") == args[3]:
+        state["active"] = None
+    save()
+else:
+    sys.exit(f"fake-nmcli: not known: {args}")

@@ -1,0 +1,230 @@
+/* Matinee's design tokens: every color, space, radius, shadow, type size and timing of the UI is one of these.
+   style.css uses only these names, never a value of its own. Dark only: a near-black room, the picture speaks,
+   the chrome stays quiet; text in three strengths of a projector's warm white, and Matinee's sage for the focus and for
+   what is switched on. Sizes follow the screen: in --u (1vw for the sofa, less close at a desk: the setting "size"),
+   and in rem (1rem = 1.05 --u, about 20px at 1920×1080). */
+
+/* Allo (SIL Open Font License, web/fonts/license/OFL-Allo.txt), Inter's warmer, rounder kin, its roundness fixed at the
+   roundest: clear at a distance, tabular figures for times, its optical size following the size of the text */
+@font-face { font-family: "Allo"; src: url("fonts/Allo.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+
+:root {
+  color-scheme: dark;
+  --u: 1vw;
+  font-size: calc(1.05 * var(--u));
+  --font: "Allo", "Inter", "Inter Variable", "Noto Sans", "Cantarell", sans-serif;
+
+  /* Type: one scale, every font-size is one of these; --t-scale is the setting "textsize" (larger: 1.15) */
+  --t-scale: 1;
+  --t-display: calc(4.5rem * var(--t-scale));           /* the screensaver's clock */
+  --t-title1: calc(3.2rem * var(--t-scale));            /* a title over its picture, the song playing */
+  --t-title2: calc(2.4rem * var(--t-scale));            /* a page's heading, the search typed */
+  --t-title3: calc(1.6rem * var(--t-scale));            /* a part of a page, the artist playing, lyrics */
+  --t-headline: calc(1.35rem * var(--t-scale));         /* a row's heading, the main menu's names */
+  --t-body: calc(1.15rem * var(--t-scale));             /* buttons, descriptions, lists, menus */
+  --t-callout: calc(1.12rem * var(--t-scale));          /* chips, a tile's name, notes */
+  --t-caption: calc(1rem * var(--t-scale));           /* the line under a name, hints */
+  --t-caption2: calc(0.86rem * var(--t-scale));         /* badges */
+  --w-light: 300;
+  --w-regular: 450;   /* half a step above Allo's regular: its thinner strokes as clear at a distance as Inter's */
+  --w-semibold: 600;
+  --w-bold: 700;
+  --track-tight: -0.02em;        /* large titles */
+  --track-snug: -0.01em;         /* headings */
+  --track-wide: 0.02em;          /* initials in place of a face */
+  --track-caps: 0.08em;          /* a small line in capitals over a title */
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;                /* two lines under a tile, an episode's text */
+  --lh-body: 1.5;
+  --lh-loose: 1.6;               /* long text to read: the full description, the settings' notes */
+
+  /* Colors */
+  /* Matinee's own: a cinema's colors, the warm white of a projector's light on the dark of the room, and a
+     quiet sage for the focus (also the front card of its logo): calm beside the pictures, no other player's color */
+  --bg: #000;
+  --tile: #1e1b19;               /* an empty card or cover, a key: the dark of the room, a little warm */
+  --text: #f6f1ea;               /* a projector's light */
+  --soft: rgba(246, 241, 234, 0.85);   /* longer text: descriptions, artists */
+  --muted: rgba(246, 241, 234, 0.62);
+  --faint: rgba(246, 241, 234, 0.56);  /* at least 4.5:1 on black and on the darkened backdrops */
+  --dim: rgba(246, 241, 234, 0.35);    /* lyrics not being sung, the screensaver's clock */
+  --accent: #8fbcb2;             /* the focus: Matinee's sage */
+  --focus-ink: #0c1715;          /* text on the sage of the focus (over 9:1) */
+  --focus-ink-muted: rgba(12, 23, 21, 0.72); /* the second line on the sage of the focus */
+  --on: #8fbcb2;                 /* the one accent: a star given, the sleep timer set, ⇧ on */
+  --on-focused: #7a2a1a;         /* the same accent on the sage of the focus: a deep red, over 5:1 */
+  --live: #c4302b;               /* status only: a stream that is live (white text on it) */
+  --ok: #45c98a;                 /* status only: a server there, a battery full enough */
+  --warn: #e3a945;               /* status only: something to look at, not broken (Settings → System → Status) */
+  --live-ink: #ff6b5e;           /* the same as text on the dark: "LIVE" readable (over 4.5:1) */
+  /* Every grey is of one warm family, the projector's white over the dark of the room: no cool grey beside a warm one */
+  /* the projector's white over the dark: surfaces from faintest to selected */
+  --fill-faint: rgba(246, 241, 234, 0.07);
+  --fill: rgba(246, 241, 234, 0.12);   /* a button or chip at rest */
+  --fill-raised: rgba(246, 241, 234, 0.15);
+  --fill-track: rgba(246, 241, 234, 0.2); /* the empty part of a bar, a separator */
+  --fill-sel: rgba(246, 241, 234, 0.24);
+  --badge-light: rgba(246, 241, 234, 0.9);
+  --line: rgba(246, 241, 234, 0.09);   /* the thin edge of glass */
+  --frame: 0.2rem;               /* the sage frame round a focused tile's picture */
+  /* black over the picture: shades and scrims, from lightest to darkest */
+  --scrim-30: rgba(0, 0, 0, 0.3);
+  --scrim-45: rgba(0, 0, 0, 0.45);
+  --scrim-55: rgba(0, 0, 0, 0.55);
+  --scrim-60: rgba(0, 0, 0, 0.6);
+  --scrim-70: rgba(0, 0, 0, 0.7);
+  --scrim-75: rgba(0, 0, 0, 0.75);  /* under the full text (the reader), with --reader-blur: the page behind only a hint */
+  --reader-blur: blur(40px) saturate(1.2);
+  --clear: rgba(0, 0, 0, 0);
+  /* frosted glass for the small surfaces over the picture (bar, options, notes): see-through, blurred, a thin edge */
+  /* tinted by the picture behind it (core.js sets --glass-pic from the backdrop's colour, a breath of it, as the
+     light of the screen colours the room); the warm dark without a picture */
+  --glass: var(--glass-pic, rgba(36, 33, 30, 0.5));
+  --glass-blur: blur(28px) saturate(1.6);
+  --glass-edge: 1px solid var(--line);
+  --icon-face: linear-gradient(160deg, #312d2a, #1c1a18); /* a tile of the dock: opaque, a little light from above */
+  /* the dock: lighter glass than the small surfaces, with a rim of light along its top edge */
+  --glass-light: rgba(246, 241, 234, 0.1);
+  /* behind the settings' tile: graphite, lit softly from the top left, as the settings' own icon */
+  --calm: radial-gradient(130% 100% at 15% 0%, #48413a 0%, #26221e 45%, #131110 100%);
+  --glass-rim: inset 0 1px 0 rgba(246, 241, 234, 0.28), inset 0 -1px 0 rgba(246, 241, 234, 0.06);
+  /* the dock's liquid glass: less blur than the frosted, so what lies behind it shows, bent at its rim (index.html: #liquid);
+     its light runs along the rim, brightest at the top left, where the room's light falls on it */
+  --liquid-blur: blur(4px) saturate(1.8) url(#liquid);
+  --liquid-bend: 0.55;           /* how far the rim bends the picture: a share of the rim's width */
+  --liquid-rim: inset 1px 1px 0 rgba(246, 241, 234, 0.34), inset -1px -1px 0 rgba(246, 241, 234, 0.1),
+    inset 0 0 1.2rem rgba(246, 241, 234, 0.05);
+  /* the dock's tiles: the services all of one dark (they are known by their symbols, none louder than another), Matinee's
+     own beside them set apart: Up Next with a breath of the focus's sage, Search and Settings a lighter graphite */
+  --app-service: linear-gradient(160deg, #2e2a27, #181614);
+  --app-jellyfin: var(--app-service);
+  --app-navidrome: var(--app-service);
+  --app-books: var(--app-service);
+  --app-podcasts: var(--app-service);
+  --app-tv: var(--app-service);
+  --app-next: linear-gradient(160deg, #2f3d3a, #141b1a); /* Up Next: everything at once, Matinee's own */
+  --app-search: linear-gradient(160deg, #403c38, #201e1c);
+  --app-settings: linear-gradient(160deg, #403c38, #201e1c);
+  --app-settings-ink: var(--text);
+  --ring-track: rgba(246, 241, 234, 0.16);  /* the dock's ring round what sounds: its rim, and the light going round */
+  --ring-light: var(--accent);
+
+  /* Space: a scale in quarters of a rem; every margin, padding and gap is one of these */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-14: 3.5rem;
+  --sp-20: 5rem;
+  --sp-28: 7rem;
+  --edge: calc(4.5 * var(--u));                 /* the page's edge left and right */
+  --edge-bottom: 5.5vh;          /* kept free at the screen's foot: a TV may cut its edge off (60 of 1080 px is a common safe margin) */
+  --edge-top: 5.5vh;             /* and at its top, where the bar of parts stands */
+  /* where that bar ends: its padding and edge, a tab's padding and its line of text (style.css: .tabbar, .tab) */
+  --bar-bottom: calc(var(--edge-top) + 2 * var(--sp-1) + 2 * var(--sp-2) + 1.25 * var(--t-callout) + 2px);
+  /* the music's bar at the foot: above what a TV may cut off, and the room it takes there (its cover, its padding) */
+  --nowbar-bottom: var(--edge-bottom);
+  --nowbar-room: calc(3.2rem + 2 * var(--sp-2) + var(--nowbar-bottom));
+  --pad: var(--edge);            /* the same, set to 0 inside a column that has its own edge (settings) */
+  --settings-side: calc(38 * var(--u));         /* the settings' column with the large symbol */
+  --settings-icon: 15rem;
+  --poster-w: calc(11.5 * var(--u));
+  --poster-w-library: calc(9.1 * var(--u));     /* in a library's grid: nine in a row instead of seven, filling it (91vw less 8 gaps) */
+  --land-w: calc(21 * var(--u));
+
+  /* Radii: one scale; cards are 12px at 1920, actions are pills */
+  --r-sm: 0.4rem;                /* keys, lines in a list */
+  --r-md: calc(0.625 * var(--u));               /* cards, covers, posters */
+  --r-lg: 0.9rem;                /* panels: options, notes, the music bar */
+  --r-pill: 999px;               /* buttons, chips, bars */
+  --r-round: 50%;                /* faces, artists */
+  --radius: var(--r-md);
+
+  /* Shadows */
+  --shadow-rest: 0 0.25rem 1.6rem var(--scrim-45);   /* covers and posters standing on the page */
+  --shadow-focus: 0 1.6rem 3.2rem var(--scrim-60);   /* deep and soft, under what the focus has lifted */
+  --shadow-focus-row: 0 0.4rem 1.2rem var(--scrim-45); /* under a lifted line: close, not onto the line below */
+  --shadow-text: 0 0.1rem 0.8rem var(--scrim-60);   /* a title or logo standing on the picture itself */
+  --shadow-label: 0 0 0.25rem var(--scrim-70), 0 0.1rem 0.8rem var(--scrim-60); /* small text on a busy picture */
+  --shadow-under: 0 0.06rem 0.18rem var(--scrim-60);  /* names under covers on the moving picture: tight, no halo */
+  --shadow-bar: 0 0 0 1px var(--scrim-30), 0 0 0.6rem var(--scrim-55); /* a progress track on light pictures */
+
+  /* Focus */
+  --focus-scale: 1.1;            /* tiles and cards */
+  --focus-scale-sm: 1.06;        /* buttons, chips, keys */
+  --focus-scale-row: 1.03;       /* wide lines (settings) */
+  /* the fan of albums on an artist's page: how far the two behind stand out and turn, closed while it comes */
+  --fan-spread-still: 34%;
+  --fan-turn-still: 7deg;
+  --fan-back: 0.9;
+  --press-scale: 0.95;
+  --press-scale-lg: 0.97;
+
+  /* Motion: a spring for what the focus lifts (a little past and back), a glide for what moves, fades for pictures */
+  --spring: linear(0, 0.18 7%, 0.55 16%, 0.86 26%, 1.03 36%, 1.07 44%, 1.05 53%, 1.01 66%, 1);
+  --glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 0.15s;             /* colors changing with the focus */
+  --dur-focus: 0.28s;            /* the focus's lift */
+  --dur-glide-fast: 0.35s;
+  --dur-glide: 0.38s;            /* pages, rows and strips moving: quick, the glide eases it out */
+  --dur-fade: 0.45s;             /* pictures coming in */
+  --dur-fade-slow: 0.8s;         /* backdrops crossing over */
+  --dur-tick: 1s;                /* progress that follows the time */
+  --dur-saver: 1.5s;
+  --dur-curtain: 0.6s;           /* the page coming back out of the black after the player */
+  --dur-curtain-in: 0.3s;        /* the page going into it */
+  --dur-spin: 0.8s;              /* the busy spinner's turn */
+  --intro-logo: 360px;           /* the boot splash's logo, as Plymouth draws deploy/plymouth/watermark.png: pixel for pixel */
+  --dur-intro-fan: 0.7s;         /* switched on: the logo's cards fanning out once, */
+  --intro-fan-step: 0.07s;       /* the outer pair this much after the inner one */
+  --dur-intro-zoom-at: 0.5s;     /* then, as they settle, the flight into the logo starts: the fan is seen first */
+  --dur-intro-zoom: 0.8s;        /* through its play button, slowly at first, then fast */
+  --intro-zoom: 120;             /* until the play button's dark fills the screen, to its corners */
+  --intro-zoom-ease: cubic-bezier(0.55, 0, 0.9, 0.35);
+  --intro-dim: 0.1;              /* the lights going down meanwhile: the logo at a tenth of its brightness, */
+  --dur-intro-dim: calc(var(--dur-intro-zoom) * 0.4); /* dark before the sage card is as large as the screen: no flash */
+  --intro-breathe-at: 1.5s;      /* the main menu taking long: from then the cards breathe, so that it is seen to live */
+  --dur-intro-breathe: 1.5s;     /* one way, as the boot splash before it (deploy/boot.sh), */
+  --intro-breathe: 0.14;         /* by this part of each card's angle */
+  --intro-out-at: calc(var(--dur-intro-zoom-at) + var(--dur-intro-zoom) * 0.7);
+  --dur-intro-out: 0.4s;         /* still flying, the dark gives way */
+  --dur-intro-arrive: 0.9s;      /* and the main menu comes towards you out of it, */
+  --intro-arrive: 1.2;           /* from this much larger, and settles */
+  --dur-drift: 30s;              /* the big picture at the top coming slowly closer */
+  --drift-scale: 1.06;
+  --wall-drift: -8vh;
+  --dur-wall-drift: 60s;         /* slower than a picture: many small ones moving catch the eye more */
+  --wall-dim: 0.2;             /* dim, so the dock, the tiles and the text stand out before it */
+  --wall-dim-wide: 0.15;
+  --wall-blur: 4px;            /* soft enough to stay a background, the covers still known */
+}
+
+/* The setting "size": close at a desk (a Mac, a laptop) everything three quarters as large as on a television seen
+   from the sofa: more tiles to a row, texts of a size for reading at arm's length */
+:root.desk { --u: 0.75vw; }
+
+/* The setting "textsize": large makes every text larger, the room around it as it is */
+:root.large-text { --t-scale: 1.15; }
+/* Reduced effects (the setting "effects" "light", by itself on a computer with few cores or little memory; with the
+   class plain, see style.css): no frosted glass, which blurs what lies behind it again for every frame, the dock's
+   neither; no pictures drifting; shorter moves. The glass gets darker instead, so text on it stays as readable. */
+:root.light {
+  --glass: rgba(32, 29, 26, 0.88);  /* not tinted by the picture: without the blur the plain warm dark */
+  --glass-light: rgba(56, 51, 46, 0.85);
+  --glass-blur: none;
+  --liquid-blur: none;  /* neither the dock's bending */
+  --wall-blur: 0px;
+  --wall-dim: 0.16;
+  --wall-dim-wide: 0.12;
+  --dur-focus: 0.18s;
+  --dur-glide-fast: 0.24s;
+  --dur-glide: 0.26s;
+  --dur-fade: 0.3s;
+  --dur-fade-slow: 0.45s;
+}
+

@@ -1,0 +1,12 @@
+# Matinee's nightly update: about half past four, when nobody watches; a night the machine was off is made up for
+# at the next start
+[Unit]
+Description=Matinee's nightly update
+
+[Timer]
+OnCalendar=*-*-* 04:30
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

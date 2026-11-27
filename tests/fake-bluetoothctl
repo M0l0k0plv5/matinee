@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Stand-in for bluetoothctl in the tests: devices in a JSON file (FAKE_BT_STATE), calls logged (FAKE_BT_LOG).
+A scan makes the devices marked "nearby" known; pairing works for all but those marked "refuses", connecting for all
+paired but those marked "away" (switched off).
+Without a command it reads commands from stdin, one a line, as bluetoothctl does: only then is the agent given with
+--agent there (with a command it is not), and a device marked "confirm" (an Xbox controller) pairs only with an agent
+and once its question is answered "yes"."""
+import fcntl
+import json
+import os
+import sys
+
+args = sys.argv[1:]
+agent = None
+while args[:1] in (["--timeout"], ["--agent"]):
+    if args[0] == "--agent":
+        agent = args[1]
+    args = args[2:]
+state_file = os.environ["FAKE_BT_STATE"]
+yes = lambda b: "yes" if b else "no"
+
+
+def run(args, session=False):
+    """One command; False where bluetoothctl would end with an error."""
+    # one at a time, as BlueZ is: a scan and a connect at once (Matinee's start) would each write back what the other
+    # changed
+    with open(state_file + ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with open(state_file) as f:
+            st = json.load(f)
+        with open(os.environ["FAKE_BT_LOG"], "a") as f:
+            f.write(json.dumps(args) + "\n")
+        if not st.get("controller", True):
+            print("No default controller available")
+            return False
+        devs = st["devices"]
+        known = {m: d for m, d in devs.items() if d.get("known")}
+        cmd, rest = (args[0] if args else ""), args[1:]
+        ok = True
+        if cmd == "show":
+            print("Controller E8:84:A5:00:00:01 (public)\n\tName: test\n\tPowered: " + yes(st.get("powered", True)))
+        elif cmd == "power":
+            st["powered"] = True
+        elif cmd == "devices":
+            for m, d in known.items():
+                if not rest or (rest[0] == "Paired" and d.get("paired")) or (rest[0] == "Connected" and d.get("connected")):
+                    print(f"Device {m} {d['name']}")
+        elif cmd == "scan":
+            for d in devs.values():
+                if d.get("nearby"):
+                    d["known"] = True
+        elif cmd == "info":
+            d = known.get(rest[0])
+            if not d:
+                print(f"Device {rest[0]} not available")
+                return False
+            print(f"Device {rest[0]} (public)\n\tName: {d['name']}\n\tAlias: {d['name']}")
+            if d.get("icon"):
+                print(f"\tIcon: {d['icon']}")
+            if d.get("blank"):  # a field with nothing after it, as some devices nearby have
+                print("\tModalias: ")
+            if d.get("battery") is not None:
+                print(f"\tBattery Percentage: {d['battery']:#04x} ({d['battery']})")
+            print(f"\tPaired: {yes(d.get('paired'))}\n\tTrusted: {yes(d.get('trusted'))}\n\tConnected: {yes(d.get('connected'))}")
+        elif cmd in ("pair", "trust", "connect", "disconnect", "remove"):
+            d = known.get(rest[0])
+            if not d:
+                print(f"Device {rest[0]} not available", flush=True)
+                return False
+            if cmd == "pair":
+                answered = False
+                if d.get("confirm") and session and agent:
+                    print("[agent] Confirm passkey 123456 (yes/no): ", flush=True)
+                    answered = sys.stdin.readline().strip() == "yes"
+                if not d.get("refuses") and (not d.get("confirm") or answered):
+                    d["paired"] = True
+                    print("Pairing successful", flush=True)
+                else:
+                    print("Failed to pair: org.bluez.Error.AuthenticationFailed", flush=True)
+                    ok = False
+            elif cmd == "trust":
+                d["trusted"] = True
+            elif cmd == "connect":
+                if d.get("paired") and not d.get("away"):
+                    d["connected"] = True
+                    print("Connection successful", flush=True)
+                else:
+                    print("Failed to connect: org.bluez.Error.Failed", flush=True)
+                    ok = False
+            elif cmd == "disconnect":
+                d["connected"] = False
+            elif cmd == "remove":
+                d.update(paired=False, trusted=False, connected=False, known=d.get("nearby", False))
+        if cmd in ("power", "scan", "pair", "trust", "connect", "disconnect", "remove"):  # only what changes something
+            with open(state_file + ".new", "w") as f:
+                json.dump(st, f)
+            os.replace(state_file + ".new", state_file)
+        return ok
+
+
+if args:
+    sys.exit(0 if run(args) else 1)
+if agent:
+    print("Agent registered", flush=True)
+for line in sys.stdin:
+    if line.strip() in ("quit", "exit"):
+        break
+    if line.strip():
+        run(line.split(), session=True)

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Matinee: a fan of cards like the fans of pictures on its pages, the four behind in quiet darks, stepping
+       lighter towards the middle, in front the sage one of the focus with the play button.
+       web/icon.svg is the same picture. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2f2e"/><stop offset="1" stop-color="#0f1111"/></linearGradient>
+    <filter id="shade" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000" flood-opacity="0.55"/></filter>
+    <rect id="card" x="-19" y="-60" width="38" height="54" rx="7"/>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+  <g transform="translate(64 100)">
+    <use href="#card" filter="url(#shade)" transform="rotate(-32)" fill="#3a4442"/>
+    <use href="#card" filter="url(#shade)" transform="rotate(32)" fill="#3a4442"/>
+    <use href="#card" filter="url(#shade)" transform="rotate(-16)" fill="#56635f"/>
+    <use href="#card" filter="url(#shade)" transform="rotate(16)" fill="#56635f"/>
+    <use href="#card" filter="url(#shade)" fill="#8fbcb2"/>
+  </g>
+  <path d="M58 55v20a2 2 0 0 0 3 1.7l15.5-10a2 2 0 0 0 0-3.4l-15.5-10a2 2 0 0 0-3 1.7z" fill="#0c1715"/>
+</svg>

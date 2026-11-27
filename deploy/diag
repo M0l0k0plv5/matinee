@@ -1,0 +1,105 @@
+#!/bin/sh
+# Everything worth knowing about a Matinee TV computer, in one file to look at from afar (over Tailscale):
+#   ssh <the TV computer> ~/kino/deploy/diag            → prints where the file is
+#   scp <the TV computer>:/tmp/kino-diag-*.tar.gz .
+# Runs as Matinee's user, needs no root, changes nothing. What could sign someone in is left out: no tokens, no
+# passwords; of config.json only the settings, with any secret in it blanked; of the other files only their names.
+# A command that is missing or fails says so in its file instead.
+KINO="$(cd "$(dirname "$0")/.." && pwd)"
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/kino"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+NAME="kino-diag-$(uname -n)-$STAMP"  # uname: Arch has no hostname command without inetutils
+OUT="${KINO_DIAG_DIR:-/tmp}/$NAME"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"  # PipeWire's and Wayland's sockets, from ssh too
+umask 077  # the logs are for Matinee's user alone, while they are collected too
+mkdir -p "$OUT" || exit 1
+
+# each into a file of its own, never longer than 20 s (a hung Bluetooth or network tool must not hang this)
+run() {
+  file="$OUT/$1"; shift
+  if ! command -v "$1" >/dev/null 2>&1; then echo "($1: not installed)" > "$file"; return; fi
+  if command -v timeout >/dev/null 2>&1; then timeout 20 "$@" > "$file" 2>&1; else "$@" > "$file" 2>&1; fi
+  rc=$?
+  [ "$rc" = 0 ] || echo "(exit code $rc)" >> "$file"
+}
+
+{
+  echo "host:     $(uname -n)"
+  echo "date:     $(date -Is 2>/dev/null || date)"
+  echo "uptime:   $(uptime)"
+  echo "system:   $(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"
+  echo "kernel:   $(uname -srm)"
+  echo "kino:     $(git -C "$KINO" describe --tags --always --dirty 2>&1)"
+  echo "branch:   $(git -C "$KINO" rev-parse --abbrev-ref HEAD 2>&1) tracking $(git -C "$KINO" rev-parse --abbrev-ref '@{u}' 2>&1)"
+  echo "last:     $(git -C "$KINO" log -1 --format='%h %cs %s' 2>&1)"
+  P="$KINO/.git/kino-update"
+  if [ -f "$KINO/RELEASE" ] && [ ! -e "$KINO/.git" ]; then  # installed from packages: no checkout to ask
+    echo "package:  $(cat "$KINO/RELEASE")"
+    P="${XDG_STATE_HOME:-$HOME/.local/state}/kino/update"
+  fi
+  for f in from to tries bad; do [ -f "$P/$f" ] && echo "update $f: $(cat "$P/$f")"; done
+} > "$OUT/summary.txt"
+
+# the packages that matter, by the names each distribution gives them (one not installed is left out)
+run versions.txt sh -c 'if command -v pacman >/dev/null; then
+    pacman -Q chromium mpv python cage pipewire wireplumber tailscale linux mesa intel-media-driver 2>/dev/null
+  elif command -v dpkg-query >/dev/null; then
+    dpkg-query -W -f "\${db:Status-Abbrev} \${Package} \${Version}\n" chromium mpv python3 cage pipewire wireplumber \
+      tailscale "linux-image-*" libgl1-mesa-dri mesa-va-drivers intel-media-va-driver 2>/dev/null | sed -n "s/^ii  *//p"
+  elif command -v rpm >/dev/null; then
+    LC_ALL=C rpm -q chromium mpv python3 cage pipewire wireplumber tailscale kernel-core kernel-default \
+      mesa-dri-drivers Mesa mesa-va-drivers mesa-va-drivers-freeworld intel-media-driver libva-intel-media-driver |
+      grep -v " is not installed"
+  fi; mpv --version | head -1; true'
+run services.txt systemctl --no-pager status kino kino-update.timer kino-update tailscaled bluetooth systemd-timesyncd
+run failed-units.txt systemctl --no-pager --failed
+# Matinee's own lines are tagged kino but filed under the login session PAMName= opens (session-N.scope), not under
+# kino.service: -u kino alone has only systemd's starting and stopping
+KINO_LOG='_SYSTEMD_UNIT=kino.service + UNIT=kino.service + SYSLOG_IDENTIFIER=kino'
+# shellcheck disable=SC2086  # the matches are words of their own
+run journal-kino.txt journalctl --no-pager -b -n 3000 $KINO_LOG
+# shellcheck disable=SC2086
+run journal-kino-previous-boot.txt journalctl --no-pager -b -1 -n 1000 $KINO_LOG
+run journal-update.txt journalctl --no-pager -u kino-update -n 300
+run journal-errors.txt journalctl --no-pager -p err -b -n 500
+run boots.txt journalctl --no-pager --list-boots
+run disk.txt df -h
+run memory.txt free -h
+run network.txt sh -c 'ip -brief address; echo; ip route; echo; cat /etc/resolv.conf'
+run tailscale.txt tailscale status
+run time.txt timedatectl
+run bluetooth.txt bluetoothctl devices Connected
+# BlueZ's own lines: a device it cannot reach ("Host is down": a speaker held by another device), a remote's pairing
+run journal-bluetooth.txt journalctl --no-pager -u bluetooth -b -n 500
+run audio.txt wpctl status
+run video-decoding.txt vainfo
+run displays.txt sh -c 'for s in /sys/class/drm/card*-*/status; do echo "$s: $(cat "$s")"; done
+  for m in /sys/class/drm/card*-*/modes; do [ -s "$m" ] && { echo "$m:"; head -5 "$m"; }; done'
+run watchdog.txt systemctl show -p RuntimeWatchdogUSec -p RebootWatchdogUSec
+run snapshots.txt snapper -c root list
+
+# Matinee's files: config.json with every secret blanked, the rest by name and size only
+python3 - "$CONF" > "$OUT/config.txt" 2>&1 <<'PY'
+import json, os, re, sys
+conf = sys.argv[1]
+SECRET = re.compile(r"pass|token|secret|key|pin|salt|hash", re.I)
+
+def blank(v):
+    if isinstance(v, dict):
+        return {k: ("(blanked)" if SECRET.search(k) else blank(x)) for k, x in v.items()}
+    if isinstance(v, list):
+        return [blank(x) for x in v]
+    return v
+
+try:
+    print(json.dumps(blank(json.load(open(os.path.join(conf, "config.json")))), indent=2))
+except (OSError, ValueError) as e:
+    print(f"config.json: {e}")
+print()
+for name in sorted(os.listdir(conf)) if os.path.isdir(conf) else []:
+    print(f"{os.path.getsize(os.path.join(conf, name)):>10}  {name}")
+PY
+
+tar -czf "$OUT.tar.gz" -C "$(dirname "$OUT")" "$NAME" && rm -rf "$OUT"
+chmod 600 "$OUT.tar.gz"
+echo "$OUT.tar.gz"

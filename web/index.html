@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<title>Matinee</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="icon.svg">
+</head>
+<body>
+<!-- Switched on: the logo where the boot splash showed it (deploy/plymouth/watermark.png, the same picture at the same
+     place), until the main menu stands; then its cards fan out once and it gives way (start.js); they breathe if that takes long. Not when the page only
+     reloads. The four cards behind turn by --a (style.css). -->
+<div id="intro" aria-hidden="true"><div class="zoom">
+  <svg viewBox="0 0 128 128">
+    <defs>
+      <linearGradient id="intro-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2f2e"/><stop offset="1" stop-color="#0f1111"/></linearGradient>
+      <filter id="intro-shade" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000" flood-opacity="0.55"/></filter>
+      <rect id="intro-card" x="-19" y="-60" width="38" height="54" rx="7"/>
+    </defs>
+    <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#intro-bg)"/>
+  </svg>
+  <svg viewBox="0 0 128 128" class="fan" style="--a: -32deg; --to: -50deg; --i: 1"><use href="#intro-card" x="64" y="100" filter="url(#intro-shade)" fill="#3a4442"/></svg>
+  <svg viewBox="0 0 128 128" class="fan" style="--a: 32deg; --to: 50deg; --i: 1"><use href="#intro-card" x="64" y="100" filter="url(#intro-shade)" fill="#3a4442"/></svg>
+  <svg viewBox="0 0 128 128" class="fan" style="--a: -16deg; --to: -27deg"><use href="#intro-card" x="64" y="100" filter="url(#intro-shade)" fill="#56635f"/></svg>
+  <svg viewBox="0 0 128 128" class="fan" style="--a: 16deg; --to: 27deg"><use href="#intro-card" x="64" y="100" filter="url(#intro-shade)" fill="#56635f"/></svg>
+  <svg viewBox="0 0 128 128">
+    <use href="#intro-card" x="64" y="100" filter="url(#intro-shade)" fill="#8fbcb2"/>
+    <path d="M58 55v20a2 2 0 0 0 3 1.7l15.5-10a2 2 0 0 0 0-3.4l-15.5-10a2 2 0 0 0-3 1.7z" fill="#0c1715"/>
+  </svg>
+</div></div>
+<script src="js/intro.js"></script>
+<div id="backdrop"></div>
+<!-- the dock's liquid glass: the picture behind it bent at its rim as through the edge of a lens (core.js: liquidGlass draws the map) -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true"><filter id="liquid" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse"
+  color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1"><feImage id="liquid-map" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>
+  <feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+<div id="shade"></div>
+<main id="view"></main>
+<div id="nowbar" class="f" tabindex="-1" data-action="nowbar" hidden></div>
+<button id="stripprev" class="stripnav" type="button" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="stripnext" class="stripnav" type="button" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="mouseback" type="button" tabindex="-1" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="curtain"></div>
+<div id="reader" hidden></div>
+<div id="options" hidden><div class="options-box"></div></div>
+<div id="volume" hidden><div class="volume-box"><h2></h2><div class="volume-bar"><i></i></div><span></span></div></div>
+<div id="saver" hidden><div class="clock"></div></div>
+<script src="i18n.js"></script>
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script src="js/views.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/settingspage.js"></script>
+<script src="js/welcome.js"></script>
+<script src="js/search.js"></script>
+<script src="js/tv.js"></script>
+<script src="js/music.js"></script>
+<script src="js/books.js"></script>
+<script src="js/podcasts.js"></script>
+<script src="js/library.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/options.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/playback.js"></script>
+<script src="js/input.js"></script>
+<script src="js/start.js"></script>
+</body>
+</html>

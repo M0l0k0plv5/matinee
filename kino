@@ -1,0 +1,261 @@
+#!/bin/sh
+# Starts Matinee: backend + Chromium.
+#   kino            full-screen kiosk in cage (on the TV computer from a TTY or via systemd)
+#   kino --window   on a desktop: full screen as well, close it with the window manager (e.g. Mod+Q in niri);
+#                   on macOS a maximized window instead, closed with Cmd+Q
+#   kino --update   get the newest version and restart the service
+# Backend and Chromium run inside cage so that mpv can open its window there.
+# All of it in one block, read whole before anything runs, and left by its exit: the shell reads a script as it goes,
+# and one written anew while Matinee runs (an editor, a copy over it) was read on at the old offset, mid-line in the new
+{
+DIR="$(dirname "$(readlink -f "$0")")"
+PORT="${KINO_PORT:-8765}"
+export MANGOHUD=0   # if enabled globally, it only costs performance in Chromium/mpv
+
+PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/kino-server-$PORT.pid"
+
+# Installed from packages (backend/release.py), not a checkout: DIR is the version in use, ~/.kino-versions/<commit>,
+# reached through the link ~/kino; its updates and the way back are release.py's
+RELEASE=""
+[ -f "$DIR/RELEASE" ] && [ ! -e "$DIR/.git" ] && RELEASE=1
+head_now() { if [ -n "$RELEASE" ]; then basename "$DIR"; else git -C "$DIR" rev-parse HEAD 2>/dev/null; fi; }
+
+# Replace a Matinee instance that is still running, otherwise the port is taken and Chromium only raises the old window
+stop_old() {
+  # only a backend of Matinee's: the pid of one gone long ago may belong to anything by now
+  oldpid=$(cat "$PIDFILE" 2>/dev/null)
+  case "$oldpid" in
+    ''|*[!0-9]*) ;;
+    *) ps -ww -o command= -p "$oldpid" 2>/dev/null | grep -qF -- "$DIR/server.py" && kill "$oldpid" 2>/dev/null ;;
+  esac
+  pkill -f -- "--user-data-dir=$PROFILE" 2>/dev/null
+  for _ in $(seq 30); do
+    curl -s -o /dev/null "http://127.0.0.1:$PORT/" || break
+    sleep 0.1
+  done
+}
+
+# The backend ended, and its pid file removed (unless another Matinee wrote its own there meanwhile)
+end_server() {
+  kill "$SERVER" 2>/dev/null
+  [ "$(cat "$PIDFILE" 2>/dev/null)" = "$SERVER" ] && rm -f "$PIDFILE"
+}
+
+launch_server() {
+  stop_old
+  python3 "$DIR/server.py" &
+  SERVER=$!
+  echo "$SERVER" > "$PIDFILE"
+  # stopped (systemctl stop/restart): the backend too, and the script ends at once, also while it waits for the TV;
+  # a trap on TERM alone would let it go on waiting, and systemd would kill it only after 90 s
+  trap end_server EXIT
+  trap 'exit 143' INT TERM
+}
+
+wait_server() {
+  for _ in $(seq 50); do
+    curl -s -o /dev/null "http://127.0.0.1:$PORT/session" && break
+    sleep 0.1
+  done
+}
+
+start_server() {
+  launch_server
+  wait_server
+}
+
+# An update on probation (see PROBATION in backend/updates.py): each start of the new version is counted until its page has
+# come up. Started too often without that (the backend falls over at once, or the page never says it is there and the
+# watchdog starts Matinee again), the checkout goes back to the version before by itself, which is started instead; the
+# new one is kept as "bad" and not installed again until a newer one comes. A TV switched off starts nothing again, so
+# no tries are counted while nobody watches.
+probation() {
+  P="$DIR/.git/kino-update"
+  [ -z "$RELEASE" ] || P="${XDG_STATE_HOME:-$HOME/.local/state}/kino/update"  # as PROBATION in backend/updates.py
+  [ -f "$P/to" ] || return 0
+  to=$(cat "$P/to")
+  if [ "$(head_now)" != "$to" ]; then
+    rm -f "$P/from" "$P/to" "$P/tries"  # set to another version meanwhile (by hand): nothing to judge
+    return 0
+  fi
+  tries=$(( $(cat "$P/tries" 2>/dev/null || echo 0) + 1 ))
+  if [ "$tries" -gt "${KINO_PROBATION_TRIES:-3}" ] && [ -s "$P/from" ]; then
+    from=$(cat "$P/from")
+    echo "The update to $to did not come up after $((tries - 1)) starts: back to $from" >&2
+    if [ -n "$RELEASE" ]; then
+      link=$(python3 "$DIR/backend/release.py" switch "$from") && back="$link/kino"
+    else
+      git -C "$DIR" reset --quiet --hard "$from" && back="$DIR/kino"
+    fi
+    if [ -n "${back:-}" ]; then
+      echo "$to" > "$P/bad"
+      rm -f "$P/from" "$P/to" "$P/tries"
+      exec "$back" --session  # the version before's own start
+    fi
+    echo "Going back failed: staying on $to" >&2
+  fi
+  echo "$tries" > "$P/tries"
+}
+
+PROFILE="${XDG_CACHE_HOME:-$HOME/.cache}/kino/chromium"
+if [ "${1:-}" = "--session" ]; then
+  # on the thin client Chromium's profile lives in memory: turning it off any time cannot damage it, and the SSD
+  # is spared; its picture cache starts empty after each start (Matinee keeps what it needs in its backend)
+  PROFILE="${XDG_RUNTIME_DIR:-/tmp}/kino-chromium"
+fi
+CHROMIUM=chromium
+# Fedora calls it chromium-browser
+command -v chromium >/dev/null 2>&1 || ! command -v chromium-browser >/dev/null 2>&1 || CHROMIUM=chromium-browser
+# Ubuntu has it as a snap only (/snap/bin is not on the service's PATH; its chromium-browser only starts the snap): the
+# snap may not write to hidden folders in the home directory, its profile is in the snap's own ones instead
+found="$(command -v "$CHROMIUM" 2>/dev/null || true)"
+if [ -x /snap/bin/chromium ] && { [ -z "$found" ] || case "$found" in /snap/*) true;; *) grep -qs /snap/ "$found";; esac; }; then
+  CHROMIUM=/snap/bin/chromium
+  PROFILE="$HOME/snap/chromium/common/kino-chromium"
+  [ "${1:-}" != "--session" ] || PROFILE="${XDG_RUNTIME_DIR:-/tmp}/snap.chromium/kino-chromium"
+fi
+# --disable-background-networking: none of Chromium's own services behind the page (push messages, component updates,
+# field trials): nothing a kiosk uses, and their failures ("DEPRECATED_ENDPOINT") were among Matinee's lines
+FLAGS="--noerrdialogs --disable-infobars --no-first-run --autoplay-policy=no-user-gesture-required --ozone-platform=wayland --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=Vulkan,Translate --disk-cache-size=104857600 --disable-background-networking"
+if [ "$(uname)" = Darwin ]; then
+  # macOS: Chromium from /Applications (e.g. brew install --cask ungoogled-chromium), no Wayland
+  for c in "${KINO_CHROMIUM:-}" /Applications/Chromium.app/Contents/MacOS/Chromium \
+           "$HOME/Applications/Chromium.app/Contents/MacOS/Chromium" "$(command -v chromium)"; do
+    [ -n "$c" ] && [ -x "$c" ] && { CHROMIUM=$c; break; }
+  done
+  # --log-level=3: only Chromium's fatal errors in ~/Library/Logs/Matinee.log, its everyday ones ("chrome://newtab/ for
+  # incorrect profile type", every few minutes) would bury Matinee's own lines
+  FLAGS="--noerrdialogs --disable-infobars --no-first-run --autoplay-policy=no-user-gesture-required --disable-features=Translate --disk-cache-size=104857600 --log-level=3"
+fi
+browser() {
+  # shellcheck disable=SC2086  # FLAGS is a list of words
+  "$CHROMIUM" --user-data-dir="$PROFILE" --app="http://127.0.0.1:$PORT" $FLAGS "$@"
+}
+
+case "${1:-}" in
+  --update)
+    # newest version from where Matinee was cloned from (or the newest package); a running service is restarted to use it
+    # the checkout mirrors GitHub, nothing is changed in it by hand: set to the newest version there whatever happened
+    if [ -n "$RELEASE" ]; then
+      python3 "$DIR/backend/release.py" install >/dev/null || exit 1
+    else
+      git -C "$DIR" fetch --quiet && git -C "$DIR" reset --quiet --hard "origin/$(git -C "$DIR" rev-parse --abbrev-ref HEAD)" \
+        || { echo "Update failed, nothing changed." >&2; exit 1; }
+    fi
+    # The service started anew without a password, as the in-app update does it: its backend ended (what plays kept
+    # where it is, as Back would), the session ends with it and systemd starts it again (Restart=always). sudo only
+    # where no backend of this Matinee is found.
+    if systemctl is-active --quiet kino 2>/dev/null; then
+      pid=$(cat "$PIDFILE" 2>/dev/null)
+      case "$pid" in ''|*[!0-9]*) pid="" ;; esac
+      if [ -n "$pid" ] && ps -ww -o command= -p "$pid" 2>/dev/null | grep -qF -- "$DIR/server.py" && kill "$pid" 2>/dev/null; then
+        echo "Matinee restarted."
+      else
+        sudo systemctl restart kino && echo "Matinee restarted."
+      fi
+    else
+      echo "Updated. Start Matinee again to use the new version."
+    fi
+    ;;
+  --window)
+    start_server
+    if [ "$(uname)" = Darwin ]; then
+      # macOS: a window filling the screen beside the menu bar and the Dock, not a full-screen space of its own
+      # (Chromium ignores --start-maximized there)
+      AREA=$(osascript -l JavaScript -e 'ObjC.import("AppKit"); var s = $.NSScreen.mainScreen, f = s.frame,
+        v = s.visibleFrame; [v.origin.x, f.size.height - v.origin.y - v.size.height, v.size.width, v.size.height]
+        .map(Math.round).join(",")' 2>/dev/null)
+      # the empty "New Tab" window Chromium opens beside Matinee's whenever macOS asks it to reopen: closed at once
+      # (newtab-guard, through DevTools on a free port of 127.0.0.1)
+      CDP=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+      python3 "$DIR/newtab-guard" "$CDP" $$ &
+      # shellcheck disable=SC2046  # the four numbers, split into words on purpose
+      set -- $(echo "$AREA" | tr ',' ' ')
+      if [ $# -eq 4 ]; then
+        browser --remote-debugging-address=127.0.0.1 --remote-debugging-port="$CDP" --window-position="$1,$2" --window-size="$3,$4"
+      else
+        browser --remote-debugging-address=127.0.0.1 --remote-debugging-port="$CDP" --start-maximized
+      fi
+    else
+      # kiosk: full screen without Chromium's "press and hold Esc" notice on every Back; close with the
+      # window manager (e.g. Mod+Q in niri)
+      browser --kiosk
+    fi
+    ;;
+  --session)
+    export KINO_SESSION=1  # in cage: the backend may set the display mode (the settings offer it)
+    # nothing in cage for X11: a program falling back to it (mpv without OpenGL on Wayland, as with Ubuntu's Mesa
+    # where it cannot use the graphics chip) starts cage's Xwayland, and cage 0.2 can fall over on that (an assertion
+    # in its xwm), the whole session with it
+    unset DISPLAY
+    probation  # a new version that did not come up: back to the one before, before anything starts
+    launch_server  # starting while the display mode is set: Matinee is there a moment sooner
+    python3 "$DIR/display-mode"  # e.g. 1080p at 120 Hz instead of 4K at 30 over HDMI 1.4
+    wait_server
+    # Chromium started without a screen (the TV off) asks cage for one without end, a whole core busy: it starts
+    # once there is one
+    DRM="${KINO_DRM:-/sys/class/drm}"
+    screen() { ! ls "$DRM"/card*-*/status >/dev/null 2>&1 || grep -qx connected "$DRM"/card*-*/status; }
+    # The backend gone: this session ends and systemd starts Matinee anew. Ended by itself to start again (an update,
+    # another account, kino --update) it exits 0, as Matinee does; else (fallen over, the UI watchdog) with its code,
+    # so the journal tells the one from the other, and not every update as a failure without a word
+    backend_gone() {
+      wait "$SERVER"
+      code=$?
+      if [ "$code" -eq 0 ]; then
+        echo "The backend ended to start again: starting Matinee again" >&2
+        exit 0
+      fi
+      echo "The backend has stopped (exit code $code): starting Matinee again" >&2
+      exit 1
+    }
+    wait_screen() {
+      until screen; do
+        kill -0 "$SERVER" 2>/dev/null || backend_gone  # meanwhile: Matinee starts anew (see below)
+        sleep 2
+      done
+    }
+    wait_screen
+    # The backend and Chromium are watched together: when either ends, so does the other and this script, cage ends
+    # with it and systemd starts Matinee anew. A backend that fell over left the page waiting for it for ever (its own
+    # watchdog had gone with it), and only switching the computer off and on again helped.
+    # Chromium falls over when cage's only screen goes (the TV switched off or to another input: "HDMI-A-1
+    # disconnected", Chromium's SIGTRAP in the same second). Then only Chromium starts again, once the screen is
+    # back: the backend goes on, and the music or book playing with it. Fallen over a fourth time within ten
+    # minutes, Matinee starts anew as a whole.
+    trap 'end_server; pkill -f -- "--user-data-dir=$PROFILE" 2>/dev/null' EXIT
+    restarts=""
+    while :; do
+      browser --kiosk --hide-crash-restore-bubble &
+      BROWSER=$!  # the shell running browser(), Chromium below it: ended by its profile, as stop_old does
+      while kill -0 "$SERVER" 2>/dev/null && kill -0 "$BROWSER" 2>/dev/null; do sleep 1; done
+      kill -0 "$SERVER" 2>/dev/null || backend_gone
+      screen && break  # ended with the screen there: as always, Matinee as a whole
+      now=$(date +%s)
+      restarts="$(for r in $restarts; do [ $((now - r)) -lt 600 ] && echo "$r"; done) $now"
+      [ "$(echo $restarts | wc -w)" -le 3 ] || break
+      echo "Chromium ended with the screen gone (the TV off): started again once it is back" >&2
+      wait_screen
+    done
+    ;;
+  *)
+    # cage starts with a US keyboard: take the system's layout, so a German keyboard has its Z, Y and umlauts.
+    # Arch keeps it in vconsole.conf (localectl set-keymap), Debian in /etc/default/keyboard (dpkg-reconfigure
+    # keyboard-configuration); the same XKB* lines in both
+    for f in /etc/vconsole.conf /etc/default/keyboard; do
+      [ -r "$f" ] || continue
+      for v in LAYOUT VARIANT MODEL OPTIONS; do
+        val=$(sed -n "s/^XKB$v=//p" "$f" | tr -d '"')
+        [ -n "$val" ] && [ -z "$(eval echo "\${XKB_DEFAULT_$v:-}")" ] && export "XKB_DEFAULT_$v=$val"
+      done
+    done
+    # The mouse pointer: without a theme named, cage and Chromium look for "default", which only Arch has (pointing
+    # to Adwaita); elsewhere wlroots draws its own coarse fallback pointer
+    [ -z "${XCURSOR_THEME:-}" ] && [ -d /usr/share/icons/Adwaita/cursors ] && export XCURSOR_THEME=Adwaita
+    # The legacy DRM interface: with the atomic one, the TV's Intel graphics refused some commits after a refresh
+    # rate change ("Atomic commit failed", dozens an hour); without it none, and switching 24/60 Hz works the same
+    exec env WLR_DRM_NO_ATOMIC=1 cage -d -s -- "$DIR/kino" --session
+    ;;
+esac
+exit
+}

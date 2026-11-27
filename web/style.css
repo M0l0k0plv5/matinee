@@ -1,0 +1,910 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+/* Allo turns -> and => into arrows as one types (its contextual alternates): never in titles and descriptions */
+body { font-family: var(--font); font-weight: var(--w-regular); font-variant-ligatures: no-contextual; cursor: none; -webkit-font-smoothing: antialiased; }
+/* a mouse moved: its pointer shows (input.js hides it again when it stands still or a key is pressed) */
+body.pointer { cursor: default; }
+body.pointer .f, body.pointer .opt { cursor: pointer; }
+/* with the pointer, a way back for a mouse or trackpad alone (as Back on the remote), top left; none on the main menu */
+#mouseback { display: none; position: fixed; top: 1rem; left: 1rem; z-index: 40; width: 2.5rem; height: 2.5rem; padding: 0; border-radius: 50%;
+  color: var(--text); background: var(--bar-glass, var(--glass)); backdrop-filter: var(--bar-blur, var(--glass-blur)); border: var(--glass-edge); cursor: pointer;
+  align-items: center; justify-content: center; transition: background var(--dur-fast), color var(--dur-fast); }
+/* the code another device takes this one's account with: big, as on the screen across the room */
+.transfer-code { font-size: 5rem; font-weight: 700; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; margin: var(--sp-8) 0; }
+#mouseback svg { width: 1.2rem; height: 1.2rem; }
+#mouseback:hover { background: var(--accent); color: var(--focus-ink); }
+body.pointer:not([data-view="menu"]) #mouseback { display: flex; }
+/* with the pointer over a row that goes on beyond the screen: ‹ and › at its ends, a page of it further (input.js) */
+.stripnav { display: none; position: fixed; z-index: 30; width: 3rem; height: 3rem; margin-top: -1.5rem; padding: 0; border-radius: 50%;
+  color: var(--text); background: var(--bar-glass, var(--glass)); backdrop-filter: var(--bar-blur, var(--glass-blur)); border: var(--glass-edge); cursor: pointer;
+  align-items: center; justify-content: center; transition: background var(--dur-fast), color var(--dur-fast); }
+.stripnav svg { width: 1.4rem; height: 1.4rem; }
+.stripnav:hover { background: var(--accent); color: var(--focus-ink); }
+body.pointer .stripnav.on { display: flex; }
+#stripprev { left: 0.75rem; }
+#stripnext { right: 0.75rem; }
+
+/* Background: blurred artwork across the whole screen (canvas, see setBackdrop) */
+#backdrop { position: fixed; inset: 0; background: var(--bg); }
+#backdrop canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity var(--dur-fade-slow) ease;
+}
+#backdrop canvas.on { opacity: 1; }
+#backdrop::after { content: ""; position: absolute; inset: 0; z-index: 2; background: var(--noise); pointer-events: none; } /* see setBackdrop */
+/* the settings' tile in the main menu: a calm graphite over the library's picture, faded in and out as a picture */
+#backdrop::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--calm); opacity: 0;
+  transition: opacity var(--dur-fade-slow) ease; pointer-events: none; }
+body:has(.menu [data-k=menu-settings]:focus) #backdrop::before { opacity: 1; }
+#shade {
+  position: fixed; inset: 0;
+  background:
+    linear-gradient(90deg, var(--scrim-30) 0%, var(--clear) 60%),
+    linear-gradient(0deg, var(--scrim-30) 0%, var(--clear) 50%);
+}
+#view { position: relative; height: 100vh; overflow-y: auto; scrollbar-width: none; }
+#view::-webkit-scrollbar { display: none; }
+
+/* Hero */
+.hero { height: 58vh; padding: 0 var(--pad); display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: var(--sp-10); }
+.logo { max-width: calc(32 * var(--u)); max-height: 13vh; object-fit: contain; object-position: left bottom; margin-bottom: var(--sp-5);  }
+img.logo.dark { filter: brightness(0) invert(0.96); } /* a dark logo, white on the dark page (see logoTone in books.js) */
+.title { font-size: var(--t-title1); font-weight: var(--w-semibold); margin: 0 0 var(--sp-4); letter-spacing: var(--track-tight); line-height: var(--lh-tight); }
+.meta { color: var(--muted); font-size: var(--t-body); display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.meta b { color: var(--text); font-weight: var(--w-semibold); }
+.meta .rating { border: 0.1em solid currentColor; border-radius: var(--r-sm); padding: 0 0.35em; font-size: 0.85em; font-weight: var(--w-semibold); }
+/* a small line in capitals over a title: why it is shown ("New in Movies") */
+.kicker { font-size: var(--t-caption); font-weight: var(--w-semibold); letter-spacing: var(--track-caps); text-transform: uppercase;
+  color: var(--soft); margin-bottom: var(--sp-3); text-shadow: var(--shadow-text); }
+.overview { max-width: calc(42 * var(--u)); font-size: var(--t-body); line-height: var(--lh-body); color: var(--soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* detail pages have room for more of the story than the home screen */
+.hero.with-poster .overview { max-width: calc(50 * var(--u)); -webkit-line-clamp: 6; }
+
+/* Home: the hero stays put, only the rows move */
+.home { height: 100vh; display: flex; flex-direction: column; }
+.home .hero { flex: 0 0 auto; height: 50vh; padding-bottom: var(--sp-6); padding-top: calc(var(--bar-bottom) + var(--sp-4)); }
+/* more than fits below the bar (the music's bar shortening the hero, a tall logo, three lines of text): the logo
+   gives way, rather than everything going up behind the bar; the texts keep their lines (clamped ones would be cut) */
+.home .hero > * { flex-shrink: 0; }
+.home .hero > .logo { flex-shrink: 1; min-height: 0; }
+body.with-nowbar .home .hero .overview { -webkit-line-clamp: 2; } /* the hero shorter by the music's bar: a line less */
+/* the music's bar at the bottom: the rows come up by its height, so it covers no tile's name before one is chosen */
+body.with-nowbar .home .hero { height: calc(50vh - var(--nowbar-room)); }
+.home .rows { flex: 1; overflow: hidden; /* what peeks in at the bottom fades out rather than being cut off */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent calc(100% - 0.5rem));
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent calc(100% - 0.5rem)); }
+/* the music's bar: the rows fade out above it, so nothing peeks through it from behind (its glass shows what lies
+   under it) */
+body.with-nowbar .home .rows { --bar-room: var(--nowbar-room);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--bar-room) - 2.5rem), transparent calc(100% - var(--bar-room) - 0.5rem));
+          mask-image: linear-gradient(to bottom, #000 calc(100% - var(--bar-room) - 2.5rem), transparent calc(100% - var(--bar-room) - 0.5rem)); }
+.rows-track { position: relative; transition: transform var(--dur-glide) var(--glide); will-change: transform; }
+
+/* Rows */
+.row { margin-bottom: var(--sp-8); overflow-x: clip; }
+.row h2 { font-size: var(--t-headline); font-weight: var(--w-semibold); letter-spacing: var(--track-snug); margin: 0 var(--pad) var(--sp-3); }
+.tracks > h2 { font-size: var(--t-headline); font-weight: var(--w-semibold); letter-spacing: var(--track-snug); margin: 0 0 var(--sp-3); } /* as a row's */
+.strip { display: flex; gap: var(--sp-4); padding: var(--sp-4) var(--pad) var(--sp-6); transition: transform var(--dur-glide) var(--glide); will-change: transform; }
+
+.card { flex: 0 0 auto; width: var(--poster-w); outline: none; transition: transform var(--dur-focus) var(--spring); }
+.card.land { width: var(--land-w); }
+.card .art {
+  position: relative; aspect-ratio: 2 / 3; border-radius: var(--radius); overflow: hidden;
+  background: var(--tile); /* its shadow comes at once with the focus: animated it was painted anew every frame */
+}
+.card.land .art { aspect-ratio: 16 / 9; }
+.card .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* pictures come out of the tile's grey as they arrive, instead of appearing all at once (playback.js marks them "in") */
+.card .art img, .poster img, .np-cover img, .mosaic img { opacity: 0; transition: opacity var(--dur-fade) ease; }
+.card .art img.in, .poster img.in, .np-cover img.in, .mosaic img.in { opacity: 1; }
+.card .art .ph { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--sp-4); text-align: center; color: var(--muted); font-size: var(--t-callout); }
+/* a long name: at most four lines, a word longer than the tile broken, not out over its edge */
+.card .art .ph > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
+.card .label { margin-top: var(--sp-2); font-size: var(--t-callout); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.card .sub { font-size: var(--t-caption); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the names drawn above the picture: it is positioned, so the shadow of the focus fell over them (on a title of two
+   lines the first one darker than the second) */
+.card .label, .card .sub { position: relative; }
+/* The focus lifts a tile, a shadow under it, and frames its picture in Matinee's sage */
+.card:focus { transform: scale(var(--focus-scale)); z-index: 2; }
+.card:focus .art { box-shadow: 0 0 0 var(--frame) var(--accent), var(--shadow-focus); }
+.card:focus .label { color: var(--text); }
+
+.progress { position: absolute; left: var(--sp-2); right: var(--sp-2); bottom: var(--sp-2); height: 0.3rem; border-radius: var(--r-pill); overflow: hidden;
+  /* a dark track with an edge, so the white bar shows on light pictures too */
+  background: var(--scrim-55); box-shadow: var(--shadow-bar); }
+.progress i { display: block; height: 100%; background: var(--accent); } /* how far: in Matinee's sage */
+.badge { position: absolute; top: var(--sp-2); right: var(--sp-2); background: var(--scrim-60); border-radius: var(--r-pill); padding: var(--sp-1) var(--sp-2); font-size: var(--t-caption2); font-weight: var(--w-semibold); }
+.fav { position: absolute; top: var(--sp-2); left: var(--sp-2); width: 1.6rem; height: 1.6rem; border-radius: var(--r-round); background: var(--scrim-55);
+  display: grid; place-items: center; }
+.fav svg { width: 0.95rem; height: 0.95rem; fill: var(--text); }
+.watched { position: absolute; top: var(--sp-2); right: var(--sp-2); width: 1.5rem; height: 1.5rem; border-radius: var(--r-round); background: var(--badge-light); color: var(--focus-ink); display: grid; place-items: center; font-size: var(--t-caption); font-weight: var(--w-semibold); }
+
+/* Buttons */
+.actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-6); }
+.btn {
+  border: 0; outline: none; font: inherit; font-size: var(--t-body); font-weight: var(--w-semibold); color: var(--text);
+  background: var(--fill); padding: var(--sp-3) var(--sp-6); border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-3); transition: transform var(--dur-focus) var(--spring), background var(--dur-fast);
+  white-space: nowrap; /* a pill holds one line */
+}
+.btn:focus { background: var(--accent); color: var(--focus-ink); transform: scale(var(--focus-scale-sm)); box-shadow: var(--shadow-focus); }
+.btn svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+
+/* Detail */
+.detail .hero { height: auto; min-height: 62vh; }
+/* an album, a playlist, a book, a podcast, a person: no backdrop large at the top to leave room for, so the cover
+   starts high up, as a page's title does (.grid-page h1), and the songs or chapters are seen at once */
+.detail:is(.music-detail, .person) .hero { min-height: 0; padding-top: var(--sp-14); }
+/* with the backdrop large behind the top (#stage-art): no poster, the info on the left, over the picture */
+.detail > :not(#stage-art) { position: relative; }
+.hero.wide .info { max-width: calc(52 * var(--u)); display: flex; flex-direction: column; }
+.hero.wide .overview { max-width: none; -webkit-line-clamp: 3; }
+.hero.wide .actions { flex-wrap: nowrap; width: max-content; }
+.hero.with-poster { flex-direction: row; align-items: flex-end; justify-content: flex-start; gap: calc(3 * var(--u)); }
+.hero .poster {
+  flex: 0 0 calc(15 * var(--u)); aspect-ratio: 2 / 3; border-radius: var(--radius); overflow: hidden;
+  background: var(--tile); box-shadow: var(--shadow-rest);
+}
+.hero .poster.still { flex-basis: calc(26 * var(--u)); aspect-ratio: 16 / 9; }
+.hero .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* someone of a cast without a photo: their initials in its place */
+.hero .poster.face .ph { width: 100%; height: 100%; display: grid; place-items: center; font-size: var(--t-display);
+  font-weight: var(--w-semibold); letter-spacing: var(--track-wide); color: var(--muted); }
+.hero .info { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.chips { display: flex; gap: var(--sp-3); padding: 0 var(--pad); margin-bottom: var(--sp-2); }
+.chip { outline: none; padding: var(--sp-2) var(--sp-5); border-radius: var(--r-pill); background: var(--fill); font-size: var(--t-callout); color: var(--muted); transition: transform var(--dur-focus) var(--spring), background var(--dur-fast), color var(--dur-fast); }
+.chip.sel { color: var(--text); background: var(--fill-sel); }
+.chip.lib { display: inline-flex; align-items: center; gap: var(--sp-3); color: var(--text); flex-shrink: 0; white-space: nowrap; }
+/* the buttons at the top of a start (a part's sections): as many lines as they need, all of them in
+   view, not a strip running off the screen's edge; up and down go from line to line */
+.libs .chips { flex-wrap: wrap; row-gap: var(--sp-3); padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.chip.lib svg { width: 1.1em; height: 1.1em; }
+.chip.lib svg:not(.logo) { fill: currentColor; } /* light on the glass, dark on the chosen one: as its words */
+.chip.lib svg.logo { width: 1.4em; height: 1em; margin: 0; }
+/* Complete seasons (the setting "badges"): on a show's poster at its foot, the top corners being watched marks and
+   My List; on a season's choice after its name. Green with dark ink when all aired episodes are there, red otherwise. */
+.count-badge { position: absolute; bottom: var(--sp-2); left: var(--sp-2); border-radius: var(--r-pill); padding: var(--sp-1) var(--sp-2);
+  font-size: var(--t-caption2); font-weight: var(--w-semibold); line-height: 1; white-space: nowrap; }
+.count-badge.complete { background: var(--ok); color: var(--focus-ink); }
+.count-badge.incomplete { background: var(--live); color: #fff; }
+.count-badge.in-chip { position: static; display: inline-block; margin-left: var(--sp-2); vertical-align: 0.1em; }
+/* an aired episode not in the library: in its place in the row, dimmed */
+.card.ep.missing .art { opacity: 0.35; }
+.card.ep.missing .sub { color: var(--live-ink); }
+/* a season with none of its episodes in the library: dimmed like them, full again while chosen */
+.chip.missing:not(:focus) { opacity: 0.5; }
+.chip:focus { background: var(--accent); color: var(--focus-ink); transform: scale(var(--focus-scale-sm)); }
+.ep .label { color: var(--text); }
+.ep-overview { font-size: var(--t-caption); color: var(--muted); line-height: var(--lh-snug); margin-top: var(--sp-1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+/* Cast: compact credits line. It is not focusable, so whatever does not fit fades out at the edge. */
+.people { margin-bottom: var(--sp-3); }
+.people h2 { margin-bottom: var(--sp-1); }
+.people .strip { gap: var(--sp-1); padding-block: var(--sp-2) var(--sp-3); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - calc(14 * var(--u))), transparent 98%); mask-image: linear-gradient(to right, #000 calc(100% - calc(14 * var(--u))), transparent 98%); }
+.people .card { width: calc(8.2 * var(--u)); text-align: center; }
+.people .card .art { width: calc(4.6 * var(--u)); margin: 0 auto; aspect-ratio: 1; border-radius: var(--r-round); box-shadow: none; }
+.people .card .ph { font-size: var(--t-headline); font-weight: var(--w-semibold); padding: 0; letter-spacing: var(--track-wide); }
+.people .card .label { margin-top: var(--sp-2); font-size: var(--t-caption); color: var(--text); }
+.people .card .sub { font-size: var(--t-caption2); }
+
+/* Grid */
+#view.still { overflow: hidden; } /* see render */
+.wheeling { transition: none !important; } /* moved by the fingers on a trackpad: no glide behind them (input.js) */
+.grid-page, .moving { position: relative; transition: transform var(--dur-glide) var(--glide); will-change: transform; }
+/* at a page's end its last tiles stay above the screen's foot, focused and grown too (a TV cuts its edge off) */
+.grid-page, .moving, .detail { padding-bottom: var(--edge-bottom); }
+.detail .row, .detail .chips { scroll-margin-bottom: var(--edge-bottom); } /* a row brought into view (scrollIntoView): as far */
+/* the music's bar at the foot: the last row ends above it, not under it (the rows' track: navigation.js) */
+body.with-nowbar :is(.grid-page, .moving, .detail) { padding-bottom: calc(var(--nowbar-room) + var(--sp-6)); }
+body.with-nowbar .detail :is(.row, .chips) { scroll-margin-bottom: calc(var(--nowbar-room) + var(--sp-6)); }
+.grid-page h1 { margin: var(--sp-14) var(--pad) var(--sp-6); font-size: var(--t-title2); font-weight: var(--w-semibold); letter-spacing: var(--track-tight); }
+/* a list's service in the small line above its heading, as on every other page */
+.grid-page > .kicker { margin: var(--sp-14) var(--pad) var(--sp-2); }
+.grid-page > .kicker + h1 { margin-top: 0; }
+/* Tiles outside the screen are not painted */
+.grid .card { content-visibility: auto; contain-intrinsic-size: auto var(--poster-w) auto calc(var(--poster-w) * 1.5 + 3.2rem); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, var(--poster-w)); gap: var(--sp-8) var(--sp-6); padding: var(--sp-4) var(--pad) var(--sp-20); justify-content: space-between; }
+/* a library of movies or shows: smaller posters, more of them in view (the rows of the start keep theirs) */
+.library-grid { --poster-w: var(--poster-w-library); gap: var(--sp-6) var(--sp-4); }
+.library-grid .card .label { font-size: var(--t-caption); }
+/* at a desk the screen is near: every page of tiles (albums, books, search) as many to a row as a library's */
+:root.desk .grid:not(.wide) { --poster-w: var(--poster-w-library); gap: var(--sp-6) var(--sp-4); }
+:root.desk .grid:not(.wide) .card .label { font-size: var(--t-caption); }
+/* the height a tile not drawn yet is laid out at, as its real one (measured: its name and year under the poster, in
+   either text size): taken from the larger tiles, every row far above was 10 px too high, and the page moved by as
+   much times the rows once they were drawn (Back to a title far down landed beside it) */
+.library-grid:not(.wide) .card { contain-intrinsic-size: auto var(--poster-w) auto calc(var(--poster-w) * 1.5 + 1rem + 1.98rem * var(--t-scale)); }
+
+#toast { position: fixed; bottom: var(--sp-12); left: 50%; transform: translateX(-50%); background: var(--glass); padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill); font-size: var(--t-callout);
+  backdrop-filter: var(--glass-blur); border: var(--glass-edge); z-index: 47; }
+/* above the music's bar while it shows, not hidden behind it (its height: the cover and its padding) */
+#nowbar:not([hidden]) ~ #toast { bottom: calc(var(--nowbar-room) + var(--sp-4)); }
+/* The tip about a held OK (holdTip): on the focused tile's picture, over its foot (above a bar of progress), smaller and
+   quieter than a message, gone by itself */
+.card .tip { position: absolute; left: var(--sp-2); right: var(--sp-2); bottom: var(--sp-4); z-index: 2; margin: 0 auto; width: max-content;
+  max-width: calc(100% - 2 * var(--sp-2)); padding: var(--sp-2) var(--sp-4); border-radius: var(--r-md); text-align: center;
+  background: var(--glass); backdrop-filter: var(--glass-blur); border: var(--glass-edge); color: var(--text);
+  font-size: var(--t-caption); line-height: var(--lh-snug); opacity: 0; pointer-events: none; transition: opacity var(--dur-fade) ease; }
+.card .tip.on { opacity: 1; }
+.card .badge.time { transition: opacity var(--dur-fade) ease; } /* away and back as the tip comes and goes, no flicker */
+.card .art:has(.tip.on) .badge.time:not(.status) { opacity: 0; } /* a video's length stands where the tip does: away while it shows */
+/* LIVE or "upcoming" says what the tile is: it stays, the tip stands above it */
+.card .art:has(.badge.status) .tip { bottom: calc(var(--sp-4) + 1.25 * var(--t-caption2) + 2 * var(--sp-1)); }
+/* a poster is narrow: a band of glass across its foot, the text a step smaller (two lines in German, not five) */
+.card:not(.land) .tip { left: 0; right: 0; bottom: 0; width: auto; max-width: none; border-radius: 0; border-width: 1px 0 0;
+  padding: var(--sp-2) var(--sp-2) var(--sp-3); font-size: var(--t-caption2); }
+.loading { display: grid; place-items: center; height: 100vh; color: var(--muted); font-size: var(--t-headline); }
+.loading .failed { text-align: center; }
+.loading .failed .actions { justify-content: center; margin-top: var(--sp-8); }
+/* a page that failed: what happened in plain words, then that it tries again, the technical reason small */
+.loading .failed { max-width: calc(50 * var(--u)); }
+.loading .failed-title { margin: 0 0 var(--sp-3); color: var(--text); font-size: var(--t-title3); font-weight: var(--w-semibold); }
+.loading .failed p { margin: 0; }
+/* why, in words for people (a server not answering): what counts, so as large as the text, under the title; that it
+   heals by itself smaller below it */
+.loading .failed .failed-why { color: var(--text); font-size: var(--t-body); }
+.loading .failed .failed-again { margin-top: var(--sp-3); font-size: var(--t-body); }
+.loading .failed-icon { width: 6rem; aspect-ratio: 1; margin: 0 auto var(--sp-8); display: grid; place-items: center;
+  border-radius: var(--r-lg); background: var(--icon-face); box-shadow: var(--shadow-rest); }
+.loading .failed-icon svg { width: 58%; height: auto; margin: 0; }
+
+/* Library: sort and filter bar */
+.grid-page h1 .count { font-size: var(--t-headline); font-weight: var(--w-regular); letter-spacing: 0; color: var(--muted); margin-left: var(--sp-2); }
+.bar { margin-bottom: 0; }
+.bar .strip { padding-top: var(--sp-1); padding-bottom: var(--sp-2); gap: var(--sp-2); align-items: center; }
+.bar .chip { flex: 0 0 auto; white-space: nowrap; }
+.chip.vol-now { background: none; color: var(--text); font-variant-numeric: tabular-nums; }  /* what the volume is: no key stops on it */
+.bar .sep { flex: 0 0 auto; width: 1px; height: 1.6rem; margin: 0 var(--sp-2); background: var(--fill-track); }
+/* a grid under the sorting and filters: room for its focused tile, grown, below the chips (not against them) */
+.bar + .grid { padding-top: var(--sp-8); }
+.hint { padding: var(--sp-8) var(--pad); color: var(--muted); font-size: var(--t-body); }
+.hint.small { padding: 0 0 var(--sp-4); font-size: var(--t-callout); }
+
+/* Search: letter grid on the left, results on the right */
+.search { display: flex; height: 100vh; }
+.search-left { flex: 0 0 calc(30 * var(--u)); min-width: 0; /* a long text typed or shown in it does not widen it */ padding: var(--sp-14) 0 0 var(--pad); }
+.query { outline: none; font-size: var(--t-title2); font-weight: var(--w-semibold); line-height: 3.4rem; min-height: 3.4rem; margin: 0 calc(-1 * var(--sp-3)) var(--sp-6); padding: 0 var(--sp-3);
+  border-radius: var(--r-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-fast); }
+.query:focus { background: var(--fill); } /* up from the letters: left and right move the caret */
+.query .hint { padding: 0; vertical-align: top; font-size: var(--t-title3); font-weight: var(--w-regular); } /* what to type: smaller than what is typed, so it fits; inline, so a long one ends in "…"; at the top of the query's line (its line-height), so the line is as high as with letters in it and the keys below do not move at the first one */
+.query .caret { display: inline-block; width: 0.15rem; height: 2.2rem; margin-left: var(--sp-1); vertical-align: -0.3rem; background: var(--text); animation: blink var(--dur-tick) steps(1) infinite; }
+.query .caret.mid { margin: 0 0.05rem; } /* between two letters: no gap opened there */
+@keyframes blink { 50% { opacity: 0; } }
+.keys { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--sp-2);
+  max-width: calc((100vh - 15.6rem) * 6 / 7); } /* one row more (the marks): a little narrower, so it still fits */ /* square keys as wide as the column, but never taller than the screen */
+.key {
+  outline: none; display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--r-sm);
+  font-size: var(--t-headline); font-weight: var(--w-semibold); color: var(--muted); background: var(--fill); transition: transform var(--dur-focus) var(--spring), background var(--dur-fast);
+}
+.key.wide { grid-column: span 2; aspect-ratio: auto; padding: var(--sp-3) 0; font-size: var(--t-callout); }
+.keys.shifted .key:not(.wide) { text-transform: uppercase; }
+.keys.shifted [data-k="key-shift"] { color: var(--on); box-shadow: inset 0 0 0 2px var(--on); }
+.key:focus { background: var(--accent); color: var(--focus-ink); transform: scale(var(--focus-scale-sm)); }
+.search-results { flex: 1; min-width: 0; padding-top: var(--sp-12); }
+.search-results .grid { padding-left: var(--sp-8); }
+/* the search of everything: under a part's two lines, the way on to its own search (closer than the grid's room below) */
+.all-more { padding: 0 var(--sp-8); margin: calc(var(--sp-12) * -1) 0 var(--sp-12); }
+.search-results .hint { padding: var(--sp-8); }
+/* a server, user name or password typed for a service: all of it shown, wrapping; Done below what to type */
+.search-left > .kicker { margin-bottom: var(--sp-2); }
+.search-wider { margin-top: var(--sp-8); }
+.search.entry .query { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.search.entry .search-results .actions { padding: 0 var(--sp-8); }
+.card .art .ph.icon svg { display: block; width: 22%; fill: var(--muted); } /* a block: no room kept below it for a line of text, so it sits in the middle */
+.card:focus .art .ph.icon svg { fill: var(--text); }
+.card .art .ph.icon svg.logo { width: 28%; margin: 0; } /* not the margin of the logos on the pages (.logo) */
+
+/* From the page to the player and back: the page goes into the black (the player's picture comes out of it,
+   kino.lua), and comes back out of it when the player has closed */
+/* switched on (index.html, start.js): the boot splash's logo at its place on black (Plymouth: centred, 45 % of the room
+   above and below it), then the cards fan out and the view flies into the logo through its play button (the origin:
+   the triangle's middle), the lights going down as it comes closer (no sage card filling the screen). Still in
+   flight the dark gives way and the main menu comes towards you out of it and settles, so the motion goes on to the
+   end instead of stopping in black; the logo goes once both have ended (start.js). A layer of its own
+   (will-change): the picture is scaled, not drawn anew 120 times as big with its shadows on every frame */
+#intro { position: fixed; inset: 0; z-index: 70; background: var(--bg); pointer-events: none; overflow: hidden;
+  transition: opacity var(--dur-intro-out) ease var(--intro-out-at); }
+#intro .zoom { position: absolute; width: var(--intro-logo); height: var(--intro-logo); left: calc(50% - var(--intro-logo) / 2);
+  top: calc((100% - var(--intro-logo)) * 0.45); transform-origin: 50.4% 50.8%; will-change: transform, filter;
+  transition: transform var(--dur-intro-zoom) var(--intro-zoom-ease) var(--dur-intro-zoom-at),
+    filter var(--dur-intro-dim) ease-in var(--dur-intro-zoom-at); }
+/* the logo in layers: the tile, the four cards fanning out, the sage card with the play button on top. Each card is
+   an svg of its own turned as a whole about the cards' foot (64, 100), on a layer of its own: drawn with its shadow
+   once and only turned by the compositor. Turned inside one svg, the shadows were drawn anew on every frame at the
+   zoom's scale, which the thin client's graphics could not keep up with (a third of the frames lost) */
+#intro svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#intro .fan { transform-origin: 50% 78.125%; will-change: transform; transform: rotate(var(--a));
+  transition: transform var(--dur-intro-fan) var(--spring) calc(var(--i, 0) * var(--intro-fan-step));
+  animation: intro-breathe var(--dur-intro-breathe) ease-in-out var(--intro-breathe-at) infinite alternate; }
+/* waiting for the main menu: the cards open and close a little (rotate, added to the transform above). Giving way,
+   they stay where they are in that and fan out from there, without a jump */
+@keyframes intro-breathe { to { rotate: calc(var(--a) * var(--intro-breathe)); } }
+#intro.out .fan { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { #intro .fan { animation: none; } } /* known before the settings are */
+#intro.out { opacity: 0; }
+#intro.out .zoom { transform: scale(var(--intro-zoom)); filter: brightness(var(--intro-dim)); }
+#intro.out .fan { transform: rotate(var(--to)); }
+#intro.out ~ #view { animation: intro-arrive var(--dur-intro-arrive) ease-out var(--intro-out-at) backwards; }
+@keyframes intro-arrive { from { transform: scale(var(--intro-arrive)); } }
+#curtain { position: fixed; inset: 0; z-index: 54; background: var(--bg); opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-curtain) ease; }
+#curtain.on { opacity: 1; transition-duration: var(--dur-curtain-in); }
+/* what is starting, once it takes longer than a moment (curtainTitle) */
+#curtain { display: grid; place-items: center; }
+#curtain .curtain-box { text-align: center; opacity: 0; transition: opacity var(--dur-fade) ease; }
+#curtain.slow .curtain-box { opacity: 1; }
+#curtain .curtain-title { font-size: var(--t-title2); font-weight: var(--w-semibold); color: var(--text); max-width: calc(70 * var(--u)); }
+#curtain .curtain-wait { margin-top: var(--sp-4); color: var(--muted); font-size: var(--t-callout); }
+#curtain .curtain-wait::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: var(--sp-3); vertical-align: -0.15em;
+  border: 2px solid var(--fill-track); border-top-color: var(--text); border-radius: var(--r-round); animation: spin var(--dur-spin) linear infinite; }
+/* The code for the simple settings: four dots, then a pad of digits as a phone's */
+.pin-dots { display: flex; gap: var(--sp-5); margin: var(--sp-6) 0 var(--sp-3); }
+.pin-dots i { width: 1.1rem; height: 1.1rem; border-radius: var(--r-round); border: 2px solid var(--soft); }
+.pin-dots i.on { background: var(--text); border-color: var(--text); }
+/* The first start: how far along its steps */
+.welcome-steps { display: flex; gap: var(--sp-2); margin: var(--sp-14) var(--pad) var(--sp-4); }
+.welcome-steps + h1 { margin-top: 0; } /* the steps take the title's room at the top, as a kicker does */
+.welcome-steps i { width: 2.2rem; height: 0.35rem; border-radius: var(--r-round); background: var(--fill-track); }
+.welcome-steps i.on { background: var(--text); }
+.pin-msg { min-height: 1.5em; margin: 0 0 var(--sp-4); color: var(--muted); font-size: var(--t-callout); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 5.5rem); gap: var(--sp-3); }
+.pin-pad .key { aspect-ratio: 1.4; font-size: var(--t-title3); }
+
+/* Shown while a page takes longer than a moment to load */
+body.busy::after {
+  content: ""; position: fixed; top: var(--edge-top); right: var(--sp-8); width: 2rem; height: 2rem; z-index: 50; /* below the top a TV may cut off */
+  border: 3px solid var(--fill-track); border-top-color: var(--text); border-radius: var(--r-round);
+  animation: spin var(--dur-spin) linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Full description: the cut-off text is focusable on detail pages, OK opens it whole */
+/* The highlight reaches above and below through shadows: padding there would show the clipped next line */
+.hero .overview.f { --hl: transparent; outline: none; border-radius: var(--r-md); margin: 0 calc(-1 * var(--sp-3)); padding: 0 var(--sp-3);
+  box-shadow: 0 calc(-1 * var(--sp-2)) 0 var(--hl), 0 var(--sp-2) 0 var(--hl); transition: background var(--dur-fast), box-shadow var(--dur-fast); }
+.hero .overview .more { font-size: var(--t-caption); font-weight: var(--w-semibold); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--text); }
+.hero .overview.f:focus { --hl: var(--fill); background: var(--hl); color: var(--text); }
+/* The full text (a film's description, the patch notes): the whole screen, large, to be read from the sofa. The page
+   behind blurred even with reduced effects: nothing moves behind the reader, so it is blurred once, not every frame */
+#reader { position: fixed; inset: 0; z-index: 40; display: grid; background: var(--scrim-75);
+  backdrop-filter: var(--reader-blur); }
+#reader[hidden] { display: none; } /* the id rule above would otherwise win over the hidden attribute */
+
+/* Screensaver: black, with a dim clock that moves now and then (see startSaver) */
+#saver { position: fixed; inset: 0; z-index: 60; background: var(--bg); }
+#saver[hidden] { display: none; }
+#saver .clock { position: absolute; font-size: var(--t-display); font-weight: var(--w-light); color: var(--dim); transition: opacity var(--dur-saver) ease; }
+#saver .clock.out { opacity: 0; }
+/* The menu key's options: a small list in the corner, the chosen line white */
+#options { position: fixed; inset: 0; z-index: 45; background: var(--scrim-45); }
+#options[hidden] { display: none; }
+#options .options-box { position: absolute; right: var(--pad); bottom: var(--sp-12); min-width: 24rem; max-width: calc(40 * var(--u)); padding: var(--sp-4);
+  border-radius: var(--r-lg); background: var(--glass); backdrop-filter: var(--glass-blur); border: var(--glass-edge); }
+#options h2 { margin: var(--sp-2) var(--sp-4) var(--sp-3); font-size: var(--t-callout); color: var(--muted); font-weight: var(--w-regular);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#options .opt { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-sm); font-size: var(--t-body); transition: background var(--dur-fast), color var(--dur-fast); }
+#options .opt.sel { background: var(--accent); color: var(--focus-ink); }
+#options .opt.on::after { content: "✓"; float: right; margin-left: var(--sp-8); } /* the one a setting is set to */
+#volume { position: fixed; right: var(--pad); bottom: var(--sp-12); z-index: 46; }
+#volume[hidden] { display: none; }
+#volume .volume-box { display: flex; align-items: center; gap: var(--sp-5); min-width: 26rem; padding: var(--sp-5) var(--sp-6);
+  background: var(--glass); border-radius: var(--r-lg); backdrop-filter: var(--glass-blur); border: var(--glass-edge); }
+#volume h2 { margin: 0; font-size: var(--t-callout); font-weight: var(--w-regular); color: var(--muted); }
+#volume .volume-bar { flex: 1; height: 0.5rem; border-radius: var(--r-pill); background: var(--fill); overflow: hidden; }
+#volume .volume-bar i { display: block; height: 100%; background: var(--accent); transform-origin: left; transition: transform var(--dur-fast); }
+#volume span { min-width: 3.5rem; text-align: right; font-size: var(--t-body); font-variant-numeric: tabular-nums; }
+/* short: in the middle; long: from the top, scrolled with up and down (readerKey) */
+#reader .reader-box { display: flex; flex-direction: column; justify-content: safe center; height: 100vh; overflow-y: auto;
+  padding: var(--sp-14) max(var(--edge), (100vw - 84rem) / 2); scrollbar-width: none; }
+#reader h2 { margin: 0 0 var(--sp-8); font-size: var(--t-title2); font-weight: var(--w-semibold); letter-spacing: var(--track-snug); }
+#reader p { margin: 0; font-size: calc(var(--t-title3) * 1.25); line-height: var(--lh-loose); color: var(--soft); white-space: pre-line; }
+
+/* Settings: one labelled row of choices per setting, then who and where Matinee is signed in */
+.settings { padding-bottom: var(--sp-10); } /* room below the versions */
+body:has(#nowbar:not([hidden])) .settings { padding-bottom: var(--sp-28); } /* and for the music bar, while it is there */
+/* The settings: lines in a column, the name and on the right what it is set to */
+.settings-part { margin: var(--sp-10) var(--pad) var(--sp-3); font-size: var(--t-headline); font-weight: var(--w-semibold); color: var(--muted); }
+.slist + .slist { margin-top: var(--sp-10); } /* groups without a heading of their own (the settings' first page) */
+.slist { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0 var(--pad); }
+.srow { outline: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-6); border-radius: var(--r-lg); background: var(--fill); font-size: var(--t-body);
+  transition: transform var(--dur-focus) var(--spring), background var(--dur-fast); }
+.srow .sval { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow[data-action="choose"] .sval::after, .srow[data-action="wxplace"] .sval::after, .srow[data-action="bluetooth"] .sval::after,
+.srow[data-action="settingspart"] .sval::after, .srow[data-action="libcheck"] .sval::after,
+.srow[data-action="controls"] .sval::after, .srow[data-action="simple"] .sval::after { content: "›"; margin-left: var(--sp-3); }
+/* the library check: a film as it is, an arrow, as it would be; each with its poster small */
+.srow.lc { justify-content: flex-start; gap: var(--sp-5); padding-block: var(--sp-3); }
+.srow.lc .sval { margin-left: auto; padding-left: var(--sp-5); }
+.lc-film { display: flex; align-items: center; gap: var(--sp-4); min-width: 0; flex: 0 1 34%; }
+.lc-film img, .lc-film i { width: 2.6rem; aspect-ratio: 2 / 3; object-fit: cover; border-radius: var(--r-sm); flex: none; background: var(--fill-raised); }
+.lc-film span { display: flex; flex-direction: column; min-width: 0; }
+.lc-film b { font-weight: var(--w-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-film small { font-size: var(--t-caption); color: var(--muted); }
+.srow.lc:focus .lc-film small { color: var(--focus-ink-muted); }
+.lc-arrow { color: var(--muted); flex: none; }
+.srow.lc:focus .lc-arrow { color: var(--focus-ink-muted); }
+.libcheck .slist + .lc-list, .libcheck .lc-tip + .lc-list { margin-top: var(--sp-6); }
+.libcheck .lc-tip { margin: var(--sp-5) var(--pad) 0; color: var(--muted); }
+.srow:focus { background: var(--accent); color: var(--focus-ink); transform: scale(var(--focus-scale-row)); box-shadow: var(--shadow-focus-row); }
+.srow:focus .sval { color: var(--focus-ink-muted); }
+/* the settings' pages: the part's symbol large on the left, below it what the focused line means;
+   the list on the right, its own edge (--pad 0 inside it, the screen's edge after it) */
+.settings-side { position: fixed; top: 0; bottom: 0; left: 0; width: var(--settings-side); display: flex; flex-direction: column;
+  align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12); box-sizing: border-box;
+  /* the symbol where it stands with a hint of four lines, centred, whatever the hint: a longer one grows downwards,
+     the symbol never jumps from one line or part to the next */
+  padding-top: max(var(--sp-8), calc(50vh - (var(--settings-icon) + var(--sp-8) + 4 * var(--t-body) * var(--lh-loose)) / 2)); }
+.settings-icon { width: var(--settings-icon); aspect-ratio: 1; display: grid; place-items: center; border-radius: var(--r-lg);
+  background: var(--icon-face); box-shadow: var(--shadow-rest); }
+.settings-icon svg { width: 46%; height: auto; fill: var(--soft); }
+.settings-icon:has(> .kino-logo) { background: none; box-shadow: none; } /* Matinee's logo has its own tile */
+.settings-icon .kino-logo { width: 100%; height: 100%; }
+.settings-icon svg.logo { width: 56%; margin: 0; } /* not a title's logo's room below it */
+/* a line's own symbol (sideIcon): white on a tile of its color, a little light from above, coming up as it changes */
+.settings-icon[data-tint] { background: linear-gradient(160deg, var(--ta), var(--tb)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), var(--shadow-rest); }
+.settings-icon[data-tint] svg { fill: #fff; width: 50%; }
+.settings-icon svg.line { fill: none; stroke: var(--soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.settings-icon[data-tint] svg.line { stroke: #fff; }
+.settings-icon.pop svg { animation: icon-in var(--dur-glide-fast) var(--glide); }
+@keyframes icon-in { from { transform: scale(0.8); opacity: 0; } }
+.settings-icon[data-tint="gray"] { --ta: #a1a1a8; --tb: #5d5d63; }
+.settings-icon[data-tint="blue"] { --ta: #4fa8ff; --tb: #0a5fd6; }
+.settings-icon[data-tint="sky"] { --ta: #6fd0ff; --tb: #1d8fe0; }
+.settings-icon[data-tint="indigo"] { --ta: #8a86ff; --tb: #4740d0; }
+.settings-icon[data-tint="purple"] { --ta: #c77dff; --tb: #8433d6; }
+.settings-icon[data-tint="pink"] { --ta: #ff6f9f; --tb: #d6265f; }
+.settings-icon[data-tint="red"] { --ta: #ff6b5e; --tb: #d92d20; }
+.settings-icon[data-tint="orange"] { --ta: #ffb238; --tb: #f07800; }
+.settings-icon[data-tint="green"] { --ta: #4fd86d; --tb: #1f9d40; }
+.settings-icon[data-tint="teal"] { --ta: #4fd6e0; --tb: #148f9e; }
+.settings-aside { white-space: pre-line; /* a hint over two lines (the library check: why, and the file) */
+  min-height: calc(4em * var(--lh-loose)); max-width: calc(26 * var(--u)); text-align: center; color: var(--muted);
+  font-size: var(--t-body); line-height: var(--lh-loose); }
+.grid-page.settings { --pad: 0px; margin-left: var(--settings-side); margin-right: var(--edge); }
+/* The effects' preview in place of the symbol (fxPreview): a small main menu, its picture blurred behind and sharp at
+   the top, a row of tiles, the dock. Its own values, not the tokens, so it shows a choice whatever is set; above the
+   choices' shade, so it is seen while choosing */
+.settings-side.fx { z-index: 46; }
+.settings-side.fx .settings-icon, .fx-preview { display: none; }
+.settings-side.fx .fx-preview { display: block; }
+.fx-preview { position: relative; width: calc(var(--settings-icon) * 1.7); aspect-ratio: 16 / 9; overflow: hidden;
+  border-radius: var(--r-lg); border: 1px solid var(--line); background: #000; --fx-pic: linear-gradient(135deg, #10002b, #7b2cbf 55%, #184e77); }
+.fx-bg { position: absolute; inset: -0.8rem; background: var(--fx-pic) center / cover; filter: blur(0.5rem) saturate(1.35) brightness(0.62); }
+.fx-art { position: absolute; top: 0; right: 0; width: 64%; height: 62%; background: var(--fx-pic) center / cover;
+  mask-image: linear-gradient(to right, transparent, #000 40%), linear-gradient(to top, transparent, #000 45%);
+  mask-composite: intersect; } /* faded out to the left and below, as the main menu's */
+.fx-row { position: absolute; left: 6%; right: 30%; bottom: 31%; display: flex; gap: 3%; }
+.fx-row i { flex: 1; aspect-ratio: 16 / 9; border-radius: 0.2rem; background: linear-gradient(135deg, #1d3557, #457b9d);
+  box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.5); }
+.fx-row i:nth-child(2) { background: linear-gradient(135deg, #3d1a5b, #9d4edd); }
+.fx-row i:nth-child(3) { background: linear-gradient(135deg, #283618, #dda15e); }
+.fx-dock { position: absolute; left: 12%; right: 12%; bottom: 6%; height: 17%; display: flex; gap: 3%; padding: 2% 3%;
+  box-sizing: border-box; border-radius: 0.6rem; background: var(--glass-light); border: 1px solid var(--line);
+  backdrop-filter: blur(0.5rem) saturate(1.6); box-shadow: inset 0 1px 0 rgba(246, 241, 234, 0.28), 0 0.4rem 1rem rgba(0, 0, 0, 0.5); }
+.fx-dock i { flex: 1; border-radius: 0.25rem; background: linear-gradient(160deg, #3a3632, #1c1a18); }
+.fx-dock i:nth-child(2) { background: linear-gradient(135deg, #aa5cc3, #00a4dc); }
+.fx-dock i:nth-child(3) { background: #f2f2f2; }
+.fx-dock i:nth-child(4) { background: linear-gradient(160deg, #2f7de1, #1650a8); }
+.fx-preview[data-fx="full"] .fx-art { animation: fx-drift 6s ease-in-out infinite alternate; } /* the pictures move */
+@keyframes fx-drift { to { transform: scale(1.08); } }
+/* Reduced: no glass and no picture at the top, the blur behind stays */
+.fx-preview[data-fx="light"] .fx-dock { backdrop-filter: none; background: rgba(56, 51, 46, 0.85); }
+.fx-preview:is([data-fx="light"], [data-fx="calm"]) .fx-art { display: none; } /* Calm: the glass stays, the picture not */
+.settings .about { margin: var(--sp-8) var(--pad) var(--sp-6); }
+.about { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-2) var(--sp-8); margin: var(--sp-8) var(--pad); color: var(--muted); font-size: var(--t-callout); }
+.about dt { color: var(--faint); }
+.about dd { margin: 0; }
+/* what an update changes (Settings → Software Updates), below what is installed */
+.update-new { margin: var(--sp-8) var(--pad) var(--sp-3); font-size: var(--t-callout); font-weight: var(--w-semibold); color: var(--muted); }
+.update-new span { margin-left: var(--sp-3); font-weight: normal; color: var(--faint); }
+.update-changes { margin: 0 var(--pad) var(--sp-14); padding: 0; list-style: none; color: var(--muted); font-size: var(--t-callout); }
+.update-changes li { display: grid; grid-template-columns: 9em 1fr; gap: var(--sp-6); padding: var(--sp-2) 0; }
+.update-changes time { color: var(--faint); font-variant-numeric: tabular-nums; }
+#reader .update-notes .update-new { margin: var(--sp-8) 0 var(--sp-3); }
+#reader .update-notes .update-new:first-of-type { margin-top: 0; }
+#reader .update-notes .update-changes { margin: 0; font-size: var(--t-headline); }
+#reader .update-notes .update-new { font-size: var(--t-headline); }
+
+/* Main menu: the picture of what is focused fills the screen (the top shelf), the parts of Matinee below it as
+   equal tiles on a dock of glass; above the dock the shelf of the focused part */
+.menu { height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; }
+/* the shelf above the dock: what the focused tile holds, faded in for each */
+.menu .shelf { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: var(--sp-4); }
+.menu .shelf.shown { animation: shelf-in var(--dur-glide-fast) ease-out; }
+@keyframes shelf-in { from { opacity: 0; transform: translateY(var(--sp-3)); } }
+.menu .shelf .row { margin-bottom: 0; }
+/* above the settings: panels of the dock's frosted glass telling about the device, all as high as the highest */
+/* one row always: wrapped onto two (large text) they reached up into the time above them. Each as wide as its text but
+   19rem at least, as before; a row too wide for the screen takes the little it lacks from the panels with room to
+   spare, never breaking a line in two (a server's state stays on one line) */
+.menu .shelf .status .panels { display: flex; align-items: stretch; gap: var(--sp-5); padding: 0 var(--pad) var(--sp-4); flex-wrap: nowrap; }
+.menu .shelf .status .panel { flex: 0 1 auto; width: calc-size(max-content, max(19rem, size)); padding: var(--sp-5) var(--sp-6); border-radius: calc(var(--r-lg) + var(--sp-2));
+  background: var(--glass-light); backdrop-filter: var(--bar-blur, var(--glass-blur)); border: var(--glass-edge); box-shadow: var(--glass-rim); }
+/* and at the top the time, as a lock screen: large and light, the date and the weather under it */
+#stage-title .device-time { font-size: calc(var(--t-display) / var(--t-scale) * 1.6); /* as large with large text: it is huge already */ font-weight: var(--w-light); line-height: 1;
+  letter-spacing: var(--track-tight); font-variant-numeric: tabular-nums; }
+#stage-title .device-date { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); white-space: nowrap;
+  font-size: var(--t-title3); color: var(--soft); }
+#stage-title .device-date .sep { width: 0.3rem; height: 0.3rem; border-radius: var(--r-round); background: var(--muted); }
+#stage-title .device-date .weather { display: flex; align-items: center; gap: var(--sp-2); }
+#stage-title .device-date .weather svg { width: 1.6em; height: 1.6em; }
+#stage-title .device-date .place { color: var(--muted); }
+#stage-title .device-date .weather b { font-weight: var(--w-regular); color: var(--text); margin-right: var(--sp-1); }
+#stage-title:has(.device-time) { max-width: none; }
+.menu .shelf .status h3 { margin: 0 0 var(--sp-3); font-size: var(--t-callout); font-weight: var(--w-semibold); color: var(--muted);
+  text-transform: uppercase; letter-spacing: var(--track-wide); display: flex; align-items: center; gap: var(--sp-2); }
+.menu .shelf .status h3 .kino-logo { width: 1.9em; height: 1.9em; margin: -0.45em 0; } /* Matinee's own panel: its logo by its name */
+.menu .shelf .status .line { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--t-headline); line-height: calc(1.8 / var(--t-scale)); } /* the lines as far apart with large text */
+.menu .shelf .status .line span { color: var(--muted); font-size: var(--t-callout); white-space: nowrap; }
+.menu .shelf .status .line > span:not(:first-child) { margin-left: auto; padding-left: var(--sp-6); }
+.menu .shelf .status .dot { width: 0.6rem; height: 0.6rem; border-radius: var(--r-round); flex: none; background: var(--muted); }
+.menu .shelf .status .dot.ok { background: var(--ok); }
+.menu .shelf .status .dot.down { background: var(--live); }
+.menu .shelf .status .dot.new { background: var(--on); }
+.menu .shelf .status .weather { display: flex; align-items: center; gap: var(--sp-2); }
+.menu .shelf .status .weather svg { width: 1.8rem; height: 1.8rem; flex: none; }
+/* the names under the covers stand on the picture or the wall of covers: brighter, a tight shadow just under each
+   letter (a wide one looked like a smudge); without pictures behind them none */
+.menu .shelf .row h2, .menu .shelf .card .label, .menu .shelf .card .sub { text-shadow: var(--shadow-under); }
+.plain .menu .shelf :is(.row h2, .card .label, .card .sub) { text-shadow: none; }
+.menu .shelf .card .label { color: var(--soft); }
+.menu .shelf .card .sub { color: var(--muted); }
+/* every shelf the same height, its tiles in the same place above the dock whatever service they are from: square
+   tiles as tall as the wide ones, every title on one line, the room of the second line kept where there is none */
+.menu .shelf .card.sq { width: calc(var(--land-w) * 9 / 16); }
+.menu .shelf .card.sq .label { display: block; white-space: nowrap; }
+.menu .shelf .card:not(:has(.sub))::after { content: "\00a0"; display: block; font-size: var(--t-caption); }
+/* the dock: a slab of liquid glass floating above the picture in the middle, as wide as its tiles, its corners
+   rounded around theirs (the tiles' radius plus the room between); the tiles all the same size */
+.menu .tiles { --tile-w: calc(12 * var(--u)); --gap-dock: var(--sp-6); --dock-pad: var(--sp-6); align-self: center; justify-content: center;
+  gap: var(--gap-dock); padding: var(--dock-pad) var(--dock-pad) var(--sp-3); margin-bottom: var(--edge-bottom);
+  border-radius: calc(var(--r-lg) + var(--dock-pad)); background: var(--glass-light); backdrop-filter: var(--bar-blur, var(--liquid-blur));
+  border: var(--glass-edge); box-shadow: var(--liquid-rim), var(--shadow-focus); }
+.menu .tiles[data-n="7"] { --tile-w: calc(10.5 * var(--u)); --gap-dock: var(--sp-5); } /* all of them (music, audiobooks, podcasts and the search): the narrower each tile, all on the screen */
+.menu .tiles .card.land { width: var(--tile-w); }
+/* each tile is its service's app icon: its colors edge to edge, the logo large on them, and what
+   it holds only on the shelf above (a fan in the tile told the same twice and made the logo jump aside) */
+.menu .tiles .card .art { aspect-ratio: 5 / 3; background: var(--icon-face); border-radius: var(--r-lg); }
+.menu .tiles [data-k=menu-next] .art { background: var(--app-next); }
+.menu .tiles [data-k=menu-jellyfin] .art { background: var(--app-jellyfin); }
+.menu .tiles [data-k=menu-music] .art { background: var(--app-navidrome); }
+.menu .tiles [data-k=menu-books] .art { background: var(--app-books); }
+.menu .tiles [data-k=menu-podcasts] .art { background: var(--app-podcasts); }
+.menu .tiles [data-k=menu-tv] .art { background: var(--app-tv); }
+.menu .tiles [data-k=menu-search] .art { background: var(--app-search); }
+/* the tile of what plays: its cover over the symbol, dimmed while paused */
+.menu .tiles .art img.now { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; z-index: 1; }
+.menu .tiles .art.paused img.now { filter: brightness(0.55); }
+/* under a cover loaded, no tile colour (at the corners it showed through the cover's edge) */
+.menu .tiles .card .art:has(img.now.in) { background: transparent; }
+/* and round it a ring with a light going round, as long as it sounds (still and dim while paused). Behind the tile, a little larger: only its rim shows, its
+   inner edge the tile's own. Turned by transform alone, so the light goes round without painting anything anew */
+.menu .tiles .card { position: relative; }
+.menu .tiles .card .ring { --ring: 0.28rem; position: absolute; left: calc(-1 * var(--ring)); top: calc(-1 * var(--ring));
+  width: calc(100% + 2 * var(--ring)); height: calc(var(--tile-w) * 3 / 5 + 2 * var(--ring)); overflow: hidden; pointer-events: none;
+  border-radius: calc(var(--r-lg) + var(--ring)); corner-shape: squircle; background: var(--ring-track);
+  transition: transform var(--dur-focus) var(--spring), opacity var(--dur-fast); }
+.menu .tiles .card .ring::before { content: ""; position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1;
+  background: conic-gradient(transparent 0 50%, var(--ring-light) 100%); animation: ring-spin 2.4s linear infinite; }
+.menu .tiles .card:focus .ring { transform: scale(var(--focus-scale)); }
+.menu .tiles .card .ring.paused { opacity: 0.5; }
+.menu .tiles .card .ring.paused::before { animation-play-state: paused; }
+@keyframes ring-spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+.menu .tiles [data-k=menu-settings] .art { background: var(--app-settings); }
+.menu .tiles .card .art .ph.icon svg, .menu .tiles .card:focus .art .ph.icon svg { fill: #fff; }
+.menu .tiles [data-k=menu-settings] .art .ph.icon svg { fill: var(--app-settings-ink); }
+/* the symbols all the same height (the services' logos are round, three-cornered or wide), in the middle */
+/* every mark of one weight to the eye: the services in their own colours, Matinee's own in white, each drawn at the
+   keyline (a full circle's height) times its optical factor (core.js: --optical) */
+.menu .tiles .card .art .ph.icon svg { --keyline: 54.5%; width: auto; height: calc(var(--keyline) * var(--optical, 1)); }
+/* with the focus framed in sage, as every tile (the sage apart from it by a hair of the dark) */
+.menu .tiles .card:focus .art { box-shadow: 0 0 0 0.12rem var(--bg), 0 0 0 calc(0.12rem + var(--frame)) var(--accent), var(--shadow-focus); }
+/* the settings are no service: as large as the others, set off by a thin line */
+.menu .tiles .card.land.aux { position: relative; margin-left: var(--sp-4); }
+.menu .tiles .card.aux::before { content: ""; position: absolute; top: 18%; left: calc(-1 * (var(--sp-4) + var(--gap-dock)) / 2);
+  height: calc(var(--tile-w) * 3 / 5 * 0.64); border-left: var(--glass-edge); }
+/* only the focused tile says its name; the room for it is kept, so nothing moves */
+/* the name whole, wider than its tile if it must ("Movies & Shows" with large text): only the focused one shows, and
+   fitDockLabel keeps it centred under its tile and inside the dock */
+.menu .tiles .card .label { margin-top: var(--sp-3); font-size: var(--t-callout); font-weight: var(--w-semibold);
+  text-align: center; color: var(--text); opacity: 0; transition: opacity var(--dur-fast); overflow: visible; text-overflow: clip; }
+.menu .tiles .card:focus .label { opacity: 1; }
+/* only the tile grows with the focus, its name stays where it is */
+.menu .tiles .card:focus { transform: none; }
+.menu .tiles .card .art { transition: transform var(--dur-focus) var(--spring); }
+.menu .tiles .card:focus .art { transform: scale(var(--focus-scale)); }
+/* the top shelf: the picture across the whole screen, bright, darkened only towards the bottom for the shelf and
+   the dock; on Jellyfin's start (.beside) it stays the upper part, darker on the left for the text */
+#stage-art { position: fixed; inset: 0; pointer-events: none; }
+#stage-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 25%;
+  opacity: 0; transition: opacity var(--dur-fade-slow) ease; }
+#stage-art img.on { opacity: 1; }
+/* the sharp picture comes slowly closer while it stands (not the covers' walls, not when less motion is asked for) */
+#stage-art > img { will-change: transform; animation: drift var(--dur-drift) ease-out forwards; } /* kept while it fades out */
+@keyframes drift { to { transform: scale(var(--drift-scale)); } }
+#stage-art:not(.beside)::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(0deg, var(--scrim-70) 0%, var(--scrim-45) 30%, var(--clear) 60%); }
+/* a veil over a picture, as the covers' walls are dimmed: it gives way while a wall is shown */
+#stage-art:not(.beside)::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--scrim-45);
+  transition: opacity var(--dur-fade-slow) ease; }
+#stage-art.walled::before { opacity: 0; } /* see stageArt */
+#stage-art.beside { bottom: auto; height: 72vh;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.15) 70%, transparent 100%);
+          mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.15) 70%, transparent 100%); }
+#stage-art.beside img.on { opacity: 0.75; }
+/* the name of what the picture shows, top left: its logo, or its title */
+#stage-title { position: fixed; top: 7vh; left: var(--pad); max-width: calc(40 * var(--u)); pointer-events: none; filter: drop-shadow(var(--shadow-text)); }
+#stage-title .logo { display: block; max-width: calc(28 * var(--u)); max-height: 14vh; margin: 0; object-position: left top; }
+#stage-title .title { margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#stage-title.shown { animation: fade-in var(--dur-fade) ease-out; }
+@keyframes fade-in { from { opacity: 0; } }
+/* the covers' wall: a slanted grid of them, dimmer than a picture, so it stays in the background */
+#stage-art .wall { position: absolute; top: -12vh; left: -6vw; transform: rotate(-6deg); opacity: 0; transition: opacity var(--dur-fade-slow) ease; }
+#stage-art .wall.on { opacity: var(--wall-dim); }
+/* a light blur keeps it a background, not a second set of tiles: drawn into it once (wallCanvas in views.js) */
+#stage-art .wall.wide.on { opacity: var(--wall-dim-wide); } /* videos' pictures are louder than covers: dimmer */
+/* the wall glides slowly while it stands, as Jellyfin's pictures come closer */
+#stage-art .wall { animation: wall-drift var(--dur-wall-drift) linear forwards; }
+@keyframes wall-drift { from { transform: rotate(-6deg) translateY(0); } to { transform: rotate(-6deg) translateY(var(--wall-drift)); } }
+/* one title focused (an album, a book): its cover alone, large and sharp at the top right, as a film's picture */
+/* below the bar at the top (its edge, its tabs' line and padding, a gap), and never into the left side where the
+   title and its text stand: as wide as fits right of them, so a window narrower than a TV gets a smaller card */
+#stage-art .cover-art { position: absolute; right: var(--edge); aspect-ratio: 1; opacity: 0;
+  top: max(9vh, calc(var(--edge-top) + var(--t-callout) * 1.2 + 2 * var(--sp-2) + 2 * var(--sp-1) + var(--sp-5)));
+  width: min(52vh, calc(44 * var(--u)) - var(--edge), var(--room, 100vh)); /* --room: down to the shelf or rows (fitCoverArt) */
+  transition: opacity var(--dur-fade) ease, transform var(--dur-focus) var(--glide); transform: translateY(var(--sp-4)); }
+#stage-art .cover-art.on { opacity: 1; transform: none; }
+/* on the main menu nothing stands above it: it starts where the title at the left does */
+#stage-art:not(.beside) .cover-art { top: 7vh; }
+#stage-art .cover-art.card16 { aspect-ratio: 16 / 9; width: min(71vh, calc(44 * var(--u)) - var(--edge), var(--room, 100vh) * 16 / 9); }
+#stage-art .cover-art img { position: static; width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-lg);
+  box-shadow: var(--shadow-focus); opacity: 1; transition: none; animation: none; }
+/* on Jellyfin's start the title, its facts and its text stand on the left: darker there */
+#stage-art.beside::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--scrim-70) 0%, var(--scrim-45) 35%, var(--clear) 65%); }
+.home { position: relative; }
+.menu { position: relative; }
+
+/* Music: square covers, round artists, songs as lines */
+.card.sq .art { aspect-ratio: 1; }
+/* the square tiles are narrow: their titles on up to two lines, not cut off after a dozen letters */
+.card.sq .label { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.card.round .art { border-radius: var(--r-round); }
+.card.round { text-align: center; }
+.grid .card.sq { contain-intrinsic-size: auto var(--poster-w) auto calc(var(--poster-w) + 3.2rem); }
+.music-home .rows { padding-top: 0; }
+/* the fan on an artist's page: before the poster's own rule that a picture fills it */
+.hero .poster .mosaic img { position: absolute; top: 0; left: 50%; height: 100%; width: auto; aspect-ratio: 1; object-fit: cover;
+  border-radius: var(--r-sm); box-shadow: var(--shadow-rest); transform-origin: 50% 90%;
+  transform: translateX(-50%) translateX(var(--fan-x, 0)) translateY(var(--fan-y, 0)) rotate(var(--fan-r, 0deg)) scale(var(--fan-s, 1));
+  transition: transform var(--dur-focus) var(--spring), opacity var(--dur-fade) ease; }
+/* the first in front, the second behind it to the left, the third to the right */
+.mosaic img:nth-child(1) { z-index: 3; }
+.mosaic img:nth-child(2) { z-index: 2; --fan-x: calc(-1 * var(--fan-spread)); --fan-r: calc(-1 * var(--fan-turn)); --fan-s: var(--fan-back); filter: brightness(0.7); }
+.mosaic img:nth-child(3) { z-index: 1; --fan-x: var(--fan-spread); --fan-r: var(--fan-turn); --fan-s: var(--fan-back); filter: brightness(0.7); }
+.hero .poster.sq { flex-basis: calc(22 * var(--u)); aspect-ratio: 1; }
+/* an artist's head: a fan of the albums instead of a picture (Navidrome has none for many, only a stand-in) */
+.hero .poster.fan { background: none; box-shadow: none; overflow: visible; position: relative;
+  --fan-spread: var(--fan-spread-still); --fan-turn: var(--fan-turn-still); }
+.hero .poster.fan .mosaic { position: absolute; inset: 18% 22%; }
+.hero .poster.fan .mosaic img { box-shadow: var(--shadow-focus); }
+.hero .poster.fan.closed { --fan-spread: 0%; --fan-turn: 0deg; } /* until the page is there: then it opens (see artist) */
+/* an artist's page: the head like an album's, the albums below */
+.artist-page .hero { height: auto; min-height: 50vh; padding-top: var(--sp-14); }
+/* a head on a page of tiles (an artist, a channel): its title as on the detail pages, not as the page's heading */
+.grid-page .hero h1.title { margin: 0 0 var(--sp-4); font-size: var(--t-title1); letter-spacing: var(--track-tight); }
+.grid-page > :not(#stage-art) { position: relative; }
+.page-actions { display: flex; gap: var(--sp-4); padding: 0 var(--pad) var(--sp-4); }
+.tracks { padding: 0 var(--pad) var(--sp-14); }
+.track { outline: none; display: grid; grid-template-columns: 3rem 1fr auto; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5); border-radius: var(--r-sm); font-size: var(--t-body); color: var(--text); transition: background var(--dur-fast), transform var(--dur-fast); }
+.track .no, .track .d { color: var(--muted); font-variant-numeric: tabular-nums; }
+.track small { display: block; color: var(--muted); font-size: var(--t-caption); margin-top: var(--sp-1); }
+.track:focus { background: var(--accent); color: var(--focus-ink); }
+.track:focus .no, .track:focus .d, .track:focus small { color: var(--focus-ink-muted); }
+.track.on .t { font-weight: var(--w-semibold); }
+/* a podcast's episodes: the day it came out in front, its column as wide as the widest day of the list (with the
+   year, "16. September 2025", it is wider than any fixed one), so every title starts at the same edge; a long title in
+   two lines at most; one heard to the end dimmed */
+.podcast-detail .tracks { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; column-gap: var(--sp-4); }
+.podcast-detail .tracks > h2 { grid-column: 1 / -1; }
+.podcast-detail .track { grid-column: 1 / -1; grid-template-columns: subgrid; }
+.podcast-detail .track .no { white-space: nowrap; }
+.podcast-detail .track .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.podcast-detail .track.heard:not(:focus) .t { color: var(--muted); }
+.track.on .no { color: var(--text); }
+.track.on:focus .no { color: var(--focus-ink); }
+
+/* Now Playing: big cover, the song, its progress, the buttons, then what comes next */
+.nowplaying { height: 100vh; display: flex; gap: calc(4 * var(--u)); padding: 8vh var(--pad) 0; }
+.np-cover { flex: 0 0 calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: var(--radius); overflow: hidden; background: var(--tile); box-shadow: var(--shadow-rest); }
+.np-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.np-album { color: var(--muted); font-size: var(--t-callout); margin-top: var(--sp-4); }
+.np-title { font-size: var(--t-title1); font-weight: var(--w-semibold); letter-spacing: var(--track-tight); margin: var(--sp-2) 0; line-height: var(--lh-tight); }
+.np-artist { font-size: var(--t-title3); color: var(--soft); }
+.np-time { display: flex; align-items: center; gap: var(--sp-4); margin-top: var(--sp-8); color: var(--muted); font-size: var(--t-callout); font-variant-numeric: tabular-nums; }
+.np-bar { flex: 1; height: 0.35rem; border-radius: var(--r-pill); background: var(--fill-track); overflow: hidden; }
+.np-bar i { display: block; height: 100%; background: var(--text); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-tick) linear; }
+.np-buttons .btn { padding: var(--sp-4) var(--sp-5); }
+.np-buttons .btn svg { width: 1.5rem; height: 1.5rem; }
+/* what a button with a sign alone does, under it while the focus is on it (the star, the lyrics, the other device, the
+   sleep timer; previous, pause and next say it themselves): in the gap above the queue, moving nothing */
+.np-buttons .btn[aria-label] { position: relative; }
+.np-buttons .btn[aria-label]:focus::after { content: attr(aria-label); position: absolute; top: calc(100% + var(--sp-2)); left: 50%;
+  transform: translateX(-50%); font-size: var(--t-caption); font-weight: var(--w-regular); color: var(--text); white-space: nowrap; pointer-events: none; }
+.np-buttons .np-speed { min-width: 5.4rem; justify-content: center; font-variant-numeric: tabular-nums; }
+.np-up { margin: var(--sp-8) 0 var(--sp-2); font-size: var(--t-body); color: var(--muted); font-weight: var(--w-regular); }
+.np-queue { flex: 1; overflow: hidden; padding: 0 0 var(--sp-8); margin: 0 calc(-1 * var(--sp-5)); }
+.np-queue-track { position: relative; transition: transform var(--dur-glide) var(--glide); will-change: transform; }
+.nowplaying [hidden] { display: none !important; } /* their display: flex would win over the attribute */
+.np-cover.radio { display: grid; place-items: center; }
+.np-cover.radio svg { width: 30%; fill: var(--muted); }
+.np-buttons .btn.on svg { fill: var(--on); }
+.np-buttons .btn.on { color: var(--on); }
+.np-sleep span:empty { display: none; }
+.np-sleep span { font-size: var(--t-callout); }
+.np-buttons .btn.on:focus svg { fill: var(--on-focused); }
+.np-buttons .btn.on:focus { color: var(--on-focused); }
+/* lyrics instead of the queue: the line being sung is bright, the others dim */
+.np-lyrics { flex: 1; overflow: hidden; padding-bottom: var(--sp-12); font-size: var(--t-title3); line-height: var(--lh-body);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 85%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 85%, transparent); }
+.np-lyrics p { margin: 0 0 var(--sp-1); color: var(--soft); transition: color var(--dur-focus); }
+.np-lyrics.synced p { color: var(--dim); } /* see followLyrics */
+.np-lyrics p.on { color: var(--text) !important; font-weight: var(--w-semibold); }
+.np-lyrics .hint { padding: var(--sp-4) 0; font-size: var(--t-body); }
+/* the bar at the bottom while music plays elsewhere in Matinee */
+#nowbar { position: fixed; left: 50%; bottom: var(--nowbar-bottom); transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: var(--sp-4);
+  min-width: 26rem; max-width: calc(60 * var(--u)); padding: var(--sp-2) var(--sp-6) var(--sp-2) var(--sp-2); border-radius: var(--r-lg); overflow: hidden;
+  background: var(--glass); backdrop-filter: var(--glass-blur); border: var(--glass-edge);
+  transition: transform var(--dur-focus) var(--spring), background var(--dur-fast); } /* lifted as a button; its shadow at once, as a tile's: animated over the glass it was painted anew every frame */
+/* down from a page's last row: lifted like a button, OK opens Now Playing */
+#nowbar:focus { background: var(--accent); color: var(--focus-ink); transform: translateX(-50%) scale(var(--focus-scale-sm));
+  box-shadow: var(--shadow-focus); outline: none; }
+#nowbar:focus span { color: var(--focus-ink-muted); }
+#nowbar:focus i { background: var(--focus-ink); }
+#nowbar[hidden] { display: none; }
+/* the main menu has the dock at its foot: no bar over it (Play still pauses) */
+body:has(#view > .menu) #nowbar { display: none; }
+#nowbar img { width: 3.2rem; height: 3.2rem; border-radius: var(--r-sm); object-fit: cover; }
+#nowbar div { min-width: 0; display: flex; flex-direction: column; }
+#nowbar b, #nowbar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#nowbar b { font-size: var(--t-callout); } /* as a tile's name, its artist under it as a tile's line */
+#nowbar span { color: var(--muted); font-size: var(--t-caption); }
+#nowbar i { position: absolute; left: 0; right: 0; bottom: 0; height: 0.2rem; background: var(--text); transform: scaleX(0); transform-origin: left;
+  transition: transform var(--dur-tick) linear; } /* bars grow on the GPU: scaleX, not width (see showMusic) */
+#nowbar b svg { width: 0.9em; height: 0.9em; margin-right: 0.4em; vertical-align: -0.1em; fill: var(--muted); }
+#saver .clock small { display: block; font-size: var(--t-headline); margin-top: var(--sp-2); }
+#saver .clock .date { display: block; font-size: var(--t-title3); margin-top: var(--sp-1); }
+#saver .clock .weather { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--t-headline); margin-top: var(--sp-2); }
+#saver .clock .weather svg { width: 2.2rem; height: 2.2rem; flex: none; }
+#saver .clock .weather b { font-size: var(--t-title3); font-weight: var(--w-regular); margin-right: var(--sp-1); }
+
+/* wide tiles (the channels): as many a row as fit */
+/* as many videos a row as fit at 19vw, widened to fill the room (the full width, or beside the search's letters):
+   a fixed 19vw left a gap at the right; --u is 1vw, less close at a desk, tokens.css) */
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(calc(19 * var(--u)), 1fr)); }
+/* in a library's grid (the channels): five a row instead of four, as the libraries have more than the rest */
+.grid.wide.library-grid { grid-template-columns: repeat(auto-fill, minmax(calc(16 * var(--u)), 1fr)); }
+/* a grid of wide tiles: every tile at its real height, so that tiles coming back above the
+   focus do not grow or shrink once they show and move it */
+.grid.wide .card.land { width: auto; contain-intrinsic-size: auto calc(19 * var(--u)) auto calc(calc(19 * var(--u)) * 0.5625 + 4.3rem); } /* a title: mostly two lines */
+.badge.time { top: auto; bottom: var(--sp-2); }
+.badge.live { background: var(--live); }
+/* a channel without a picture of what runs: its name on a grey tile */
+.card .art.channel { --tint: var(--tile); background: linear-gradient(135deg, color-mix(in srgb, var(--tint) 75%, var(--bg)),
+  color-mix(in srgb, var(--tint) 30%, var(--bg))); }
+.card .art.channel .ph { color: var(--text); font-size: var(--t-title3); font-weight: var(--w-bold); }
+/* a live tile with the picture of what runs: the channel small in its corner, on a shade */
+.card .art.channel.showing::before { content: ""; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(160deg, var(--scrim-60), var(--clear) 45%); }
+.card .art.channel.showing .ph { inset: var(--sp-3) auto auto var(--sp-4); z-index: 2; display: block; padding: 0;
+  font-size: var(--t-headline); text-shadow: var(--shadow-label); }
+.card .art.channel.showing .badge, .card .art.channel.showing .progress { z-index: 2; }
+/* the hero of a video: long titles of the broadcasters in at most two lines, a size smaller */
+#hero .kicker + .title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* a title cut to its lines keeps the letters below the line (g, p, y), which its tight line height puts outside */
+#hero .kicker + .title, #stage-title .title { padding-bottom: 0.14em; }
+#hero .kicker + .title { margin-bottom: calc(var(--sp-4) - 0.14em); }
+.home .hero h1.title { font-size: var(--t-title2); } /* the same on every start page, with a line above it or not */
+/* the title and its text stay left of the picture card at the top right (style: #stage-art .cover-art) */
+.home .hero .title, .home .hero .logo, .home .hero .meta { max-width: calc(50 * var(--u)); }
+.results-title { margin: 0 var(--sp-8) var(--sp-4); font-size: var(--t-headline); font-weight: var(--w-semibold); letter-spacing: var(--track-snug); }
+.recent { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: 0 var(--sp-8); }
+.recent .chip.clear { color: var(--muted); }
+.recent + .recent.filters { margin-top: var(--sp-5); } /* a search's filters, under its suggestions */
+.chip .chip-sub { margin-left: var(--sp-3); opacity: 0.6; font-size: var(--t-caption); }
+/* a channel's page: its day under the headings, in line with its name; times of day in one line */
+.grid-page > .results-title { margin: var(--sp-10) var(--pad) var(--sp-4); }
+/* in a search's results: in line with its tiles, hints and chips (they are a grid-page too) */
+.search-results.grid-page > .results-title { margin-left: var(--sp-8); margin-right: var(--sp-8); }
+.tracks.guide { padding-bottom: var(--sp-4); }
+.guide .track { grid-template-columns: 6.5rem 1fr; }
+.guide .track .no { white-space: nowrap; }
+/* Bluetooth's devices: lines as the other settings; one connected with a dot before its state, what is wrong with one
+   below the devices, in line with them */
+.bluetooth .hint { padding: var(--sp-3) 0 0; margin: 0; }
+/* Status (Settings → System): a dot before each check's answer, for how it is */
+.diagnose .diag-dot { display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: var(--sp-2); border-radius: var(--r-round); background: var(--muted); vertical-align: 0.05em; }
+.diagnose .diag-dot.ok { background: var(--ok); }
+.diagnose .diag-dot.warn { background: var(--warn); }
+.diagnose .diag-dot.bad { background: var(--live); }
+.diagnose .srow.f:focus .diag-dot { box-shadow: 0 0 0 2px var(--focus-ink); }
+.bluetooth .srow.on .sval::before { content: "●"; margin-right: var(--sp-2); color: var(--ok); font-size: 0.7em; vertical-align: 0.15em; }
+
+/* OK pressed: what was chosen gives way a little for a moment, everywhere alike (see activate) */
+.btn.pressed, .chip.pressed, .key.pressed { transform: scale(var(--press-scale)); }
+.track.pressed, .card.pressed .art { transform: scale(var(--press-scale-lg)); } /* larger things give way less */
+.card.pressed { transform: none; }
+/* continuous corners (a squircle), where Chromium draws them; elsewhere plain round ones */
+.card .art, .hero .poster, .np-cover, .key, .track, #options .options-box, #options .opt, #reader .reader-box, #nowbar,
+#nowbar img, .menu .tiles .card .art, .menu .tiles .art img.now { corner-shape: squircle; } /* the cover as its tile: else a light rim between the two */
+.people .card .art, .card.round .art { corner-shape: round; } /* faces and artists stay circles */
+
+/* The tab bar at the top of each part's start, centred: the parts as words standing on the picture, the one shown
+   underlined in Matinee's sage, as a cinema's programme marks what runs now (no frosted pill under them) */
+/* as wide as its tabs (anchored at 50%, it would otherwise be held to half the screen and break them into lines); its
+   padding and edge as before, transparent: --bar-bottom counts them */
+.tabbar { position: absolute; top: var(--edge-top); left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: var(--sp-1); width: max-content;
+  padding: var(--sp-1); border-radius: var(--r-pill); border: 1px solid transparent; }
+.tab { position: relative; outline: none; white-space: nowrap; padding: var(--sp-2) var(--sp-5); border-radius: var(--r-pill); font-size: var(--t-callout); font-weight: var(--w-semibold); color: var(--soft);
+  text-shadow: var(--shadow-label); transition: transform var(--dur-focus) var(--spring), background var(--dur-fast), color var(--dur-fast); }
+.tab.sel { color: var(--text); }
+.tab.sel::after { content: ""; position: absolute; left: var(--sp-5); right: var(--sp-5); bottom: 0; height: 0.2rem; border-radius: var(--r-pill);
+  background: var(--accent); box-shadow: var(--shadow-under); }
+.tab.icon.sel::after { left: var(--sp-3); right: var(--sp-3); }
+.tab:focus::after { display: none; }
+.tab:focus { text-shadow: none; }
+.tab.icon { display: grid; place-items: center; padding: 0 var(--sp-3); }
+.tab.icon svg { width: 1.25rem; height: 1.25rem; fill: currentColor; }
+.tab:focus { background: var(--accent); color: var(--focus-ink); transform: scale(var(--focus-scale-sm)); box-shadow: var(--shadow-focus); }
+
+/* On a grid of videos and programmes (search results, a channel's page) no hero shows the focused title in full:
+   two lines for each, space kept for both so nothing moves */
+.grid .card.land .label { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  line-clamp: 2; line-height: var(--lh-snug); min-height: calc(2em * var(--lh-snug)); }
+/* a channel live: its short name on one line, what runs right below it (all channels live) */
+.grid .card.land:has(.art.channel) .label { -webkit-line-clamp: 1; line-clamp: 1; min-height: 0; }
+
+/* Effects Reduced (the class plain): no pictures at the top and no covers' walls, the blurred backdrop alone; but a
+   film's or show's own picture on its page and on Jellyfin's start (stageArt's own), standing still */
+.plain #stage-art:not(.own) { display: none; }
+.plain #stage-art > img { animation: none; will-change: auto; }
+/* Light effects (see tokens.css): the big picture and the covers' wall stand still */
+.light #stage-art > img, .light #stage-art .wall { animation: none; will-change: auto; }
+/* Less motion (the setting "motion", or the system asking for it: useMotion): the same pages, without the springs and
+   slides; the busy rings keep turning: they say that something is still coming, and a slow turn moves nothing else */
+.less-motion *, .less-motion *::before, .less-motion *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+.less-motion body.busy::after, .less-motion #curtain .curtain-wait::before { animation-duration: var(--dur-spin) !important; animation-iteration-count: infinite !important; }
+
+/* The programme guide: the channels down the left, their programmes along the time (moved by --epg-x), a line at now */
+.epg { height: 100vh; display: flex; flex-direction: column; padding-top: var(--sp-14); box-sizing: border-box; --epg-ch: 13rem; }
+.epg > .kicker { margin: 0 var(--pad) var(--sp-2); } /* where a list page's is (.grid-page > .kicker) */
+.epg h1 { margin: 0 var(--pad) var(--sp-4); font-size: var(--t-title2); font-weight: var(--w-semibold); letter-spacing: var(--track-tight); } /* as a page's heading */
+.epg-head { position: relative; height: 2.2rem; margin-left: calc(var(--pad) + var(--epg-ch)); overflow: hidden; color: var(--muted); font-size: var(--t-callout); }
+.epg-head span { position: absolute; top: 0; }
+.epg-times { position: absolute; inset: 0; transform: translateX(var(--epg-x)); transition: transform var(--dur-glide-fast) var(--glide); }
+.epg-box { position: relative; flex: 1; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent calc(100% - 0.5rem));
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent calc(100% - 0.5rem)); }
+.epg-track { transition: transform var(--dur-glide-fast) var(--glide); }
+.epg-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--live-ink); z-index: 1; pointer-events: none;
+  left: calc(var(--pad) + var(--epg-ch) + var(--now-x)); transform: translateX(var(--epg-x)); transition: transform var(--dur-glide-fast) var(--glide); }
+.epg-row { display: flex; height: 4.4rem; }
+.epg-ch { flex: none; width: var(--epg-ch); padding-left: var(--pad); display: flex; align-items: center; box-sizing: content-box; padding-right: var(--sp-4); }
+.epg-ch img { max-width: 100%; max-height: 2.4rem; object-fit: contain; }
+.jf-msg { font-size: var(--t-body); } /* what a settings page or the sign-in says: as a description */
+.epg-ch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-callout); font-weight: var(--w-semibold); }
+.epg-line { position: relative; flex: 1; overflow: hidden; }
+.epg-cell { position: absolute; top: var(--sp-1); bottom: var(--sp-1); box-sizing: border-box; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md);
+  background: var(--fill-faint); outline: none; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.epg-cell.now { background: var(--fill-raised); }
+.epg-cell:focus { background: var(--accent); color: var(--focus-ink); }
+.epg-cell b, .epg-cell small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.epg-cell b { font-weight: var(--w-semibold); font-size: var(--t-callout); }
+.epg-cell small { color: var(--muted); font-size: var(--t-caption); }
+.epg-cell:focus small { color: var(--focus-ink-muted); }

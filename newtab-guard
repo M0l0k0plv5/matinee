@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Closes the empty "New Tab" windows Chromium opens beside Matinee's window on macOS.
+
+Matinee's window is an app window (--app). When macOS asks Chromium to reopen (a click on its icon in the Dock, the app
+activated again), Chromium counts no window of its own as open (an app window is not one to it) and opens one with a
+new tab: an empty window beside Matinee. No switch of Chromium's turns that off. Nobody browses in Matinee's own profile, so
+each new tab in it is closed the moment Chromium tells of it, through its DevTools on 127.0.0.1 (kino --window starts
+it with the port): told at once rather than looked for, so the window is gone before it is drawn, or nearly.
+
+newtab-guard PORT PID: watches until the process PID (kino's shell, running Chromium) has ended."""
+import base64
+import json
+import os
+import socket
+import struct
+import sys
+import time
+import urllib.request
+
+NEW_TAB = ("chrome://newtab", "chrome://new-tab-page")
+EVERY = float(os.environ.get("KINO_NEWTAB_EVERY", "1"))  # how often it looks whether Matinee is still there
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def new_tab(info):
+    return info.get("type") == "page" and str(info.get("url", "")).startswith(NEW_TAB)
+
+
+class DevTools:
+    """Chromium's DevTools over its WebSocket: just enough of the protocol for text messages."""
+
+    def __init__(self, base):
+        with urllib.request.urlopen(f"{base}/json/version", timeout=3) as r:
+            url = json.load(r)["webSocketDebuggerUrl"]
+        host, _, path = url.removeprefix("ws://").partition("/")
+        name, _, port = host.rpartition(":")
+        if name not in ("127.0.0.1", "localhost"):
+            raise OSError(f"DevTools not on this computer: {host}")
+        self.sock = socket.create_connection((name, int(port)), timeout=3)
+        key = base64.b64encode(os.urandom(16)).decode()
+        self.sock.sendall(f"GET /{path} HTTP/1.1\r\nHost: {host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+                          f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
+        self.buf = b""
+        while b"\r\n\r\n" not in self.buf:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise OSError("DevTools closed")
+            self.buf += chunk
+        head, self.buf = self.buf.split(b"\r\n\r\n", 1)
+        if b" 101 " not in head.split(b"\r\n", 1)[0]:
+            raise OSError("DevTools refused")
+        self.next_id = 0
+
+    def send(self, method, **params):
+        self.next_id += 1
+        data = json.dumps({"id": self.next_id, "method": method, "params": params}).encode()
+        mask = os.urandom(4)
+        n = len(data)
+        head = bytes([0x81]) + (bytes([0x80 | n]) if n < 126 else bytes([0x80 | 126]) + struct.pack(">H", n)
+                                if n < 65536 else bytes([0x80 | 127]) + struct.pack(">Q", n))
+        self.sock.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
+
+    def receive(self):
+        """The next message, or None if none came in a second."""
+        while True:
+            if len(self.buf) >= 2:
+                op, n, at = self.buf[0] & 0x0F, self.buf[1] & 0x7F, 2
+                if n == 126 and len(self.buf) >= 4:
+                    n, at = struct.unpack(">H", self.buf[2:4])[0], 4
+                elif n == 127 and len(self.buf) >= 10:
+                    n, at = struct.unpack(">Q", self.buf[2:10])[0], 10
+                if n < 126 or at > 2:
+                    if len(self.buf) >= at + n:
+                        payload, self.buf = self.buf[at:at + n], self.buf[at + n:]
+                        if op == 0x8:
+                            raise OSError("DevTools closed")
+                        if op == 0x1:
+                            return json.loads(payload)
+                        continue  # ping, pong, continuation: nothing Chromium sends here that matters
+            try:
+                chunk = self.sock.recv(65536)
+            except socket.timeout:
+                return None
+            if not chunk:
+                raise OSError("DevTools closed")
+            self.buf += chunk
+
+
+def watch(base, pid):
+    """Close each new tab as Chromium tells of it, until Matinee ends (or DevTools goes: then it is asked anew)."""
+    tools = DevTools(base)
+    tools.sock.settimeout(EVERY)
+    tools.send("Target.setDiscoverTargets", discover=True)  # tells of every target there is, then of each new one
+    while alive(pid):
+        msg = tools.receive()
+        if msg and msg.get("method") in ("Target.targetCreated", "Target.targetInfoChanged"):
+            info = msg["params"]["targetInfo"]
+            if new_tab(info):
+                tools.send("Target.closeTarget", targetId=info["targetId"])
+
+
+def main():
+    port, pid = int(sys.argv[1]), int(sys.argv[2])
+    base = f"http://127.0.0.1:{port}"
+    while alive(pid):
+        try:
+            watch(base, pid)
+        except (OSError, ValueError, KeyError):
+            time.sleep(EVERY)  # Chromium not there yet, or just going
+
+
+if __name__ == "__main__":
+    main()

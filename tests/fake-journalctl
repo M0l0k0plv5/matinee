@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stand-in for journalctl in the tests: bluetoothd's log, as the file FAKE_JOURNAL has it (nothing without one).
+[ -n "$FAKE_JOURNAL" ] && [ -f "$FAKE_JOURNAL" ] && cat "$FAKE_JOURNAL"
+exit 0

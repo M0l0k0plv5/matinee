@@ -1,0 +1,54 @@
+#!/bin/sh
+# Installs Matinee from its newest signed package, without git: on a fresh Arch Linux, Debian 13, Fedora or openSUSE
+# Tumbleweed machine, as the user Matinee runs as (not root):
+#   curl -fsSL @GET_URL@ | sh
+# It puts the version in ~/.kino-versions/<commit> behind the link ~/kino, then runs ~/kino/deploy/install.sh (the
+# packages, the service, the start on tty1). Updates come the same way later (backend/release.py).
+# deploy/make-release fills in where the packages are and the key they are signed with.
+set -eu
+MANIFEST="${KINO_RELEASES:-@MANIFEST_URL@}"
+SIGNERS='@SIGNERS@'
+LINK="${KINO_LINK:-$HOME/kino}"
+VERSIONS="$(dirname "$LINK")/.$(basename "$LINK")-versions"
+
+[ "$(id -u)" != 0 ] || { echo "!! Run it as the user Matinee is for, not as root (it asks for sudo itself)" >&2; exit 1; }
+[ ! -e "$LINK" ] || [ -L "$LINK" ] || { echo "!! $LINK is there already and is no Matinee installed from a package" >&2; exit 1; }
+
+# what checking and unpacking the package needs: Python (its manifest), OpenSSH (its signature)
+need=""
+command -v python3 >/dev/null 2>&1 || need=1
+command -v ssh-keygen >/dev/null 2>&1 || need=1
+command -v curl >/dev/null 2>&1 || need=1
+if [ -n "$need" ]; then
+  echo "==> Python, OpenSSH and curl"
+  if command -v pacman >/dev/null 2>&1; then sudo pacman -S --needed --noconfirm python openssh curl
+  elif command -v apt-get >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y python3 openssh-client curl
+  elif command -v dnf >/dev/null 2>&1; then sudo dnf install -y python3 openssh-clients curl
+  elif command -v zypper >/dev/null 2>&1; then sudo zypper install -y python3 openssh-clients curl
+  else echo "!! Matinee installs on Arch Linux, Debian, Fedora and openSUSE" >&2; exit 1
+  fi
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+echo "==> The newest Matinee"
+curl -fsSL -o "$tmp/manifest.json" "$MANIFEST"
+curl -fsSL -o "$tmp/manifest.json.sig" "$MANIFEST.sig"
+printf '%s\n' "$SIGNERS" > "$tmp/signers"
+ssh-keygen -Y verify -f "$tmp/signers" -I kino -n kino-release -s "$tmp/manifest.json.sig" < "$tmp/manifest.json" >/dev/null ||
+  { echo "!! The package list is not signed by Matinee's key: nothing installed" >&2; exit 1; }
+set -- $(python3 -c 'import json, sys, urllib.parse
+m = json.load(open(sys.argv[1]))
+print(m["commit"], urllib.parse.urljoin(sys.argv[2], m["archive"]), m["sha256"])' "$tmp/manifest.json" "$MANIFEST")
+commit=$1 archive=$2 sha=$3
+curl -fsSL -o "$tmp/kino.tar.gz" "$archive"
+echo "$sha  $tmp/kino.tar.gz" | sha256sum -c --quiet - ||
+  { echo "!! The package is not the one the list names: nothing installed" >&2; exit 1; }
+mkdir -p "$VERSIONS" "$tmp/kino"
+tar -xzf "$tmp/kino.tar.gz" -C "$tmp/kino"
+rm -rf "${VERSIONS:?}/$commit"
+mv "$tmp/kino" "$VERSIONS/$commit"
+ln -sfn "$VERSIONS/$commit" "$LINK"
+echo "    Matinee $(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$LINK/RELEASE") in $LINK"
+[ -z "${KINO_INSTALL:-}" ] || exec sh -c "$KINO_INSTALL"  # the tests: in place of the system's setup
+exec "$LINK/deploy/install.sh" < /dev/tty  # its questions answered at the keyboard, not by the pipe from curl

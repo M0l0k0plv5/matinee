@@ -1,0 +1,35 @@
+#!/bin/sh
+# Publishes the version committed and pushed on main as Matinee's newest package, for the devices installed from
+# packages (backend/release.py, deploy/get-kino): built from HEAD, its manifest signed with the release key, and all of
+# it put on GitHub as a release of the packages' own repository (needs gh, signed in).
+#   deploy/make-release            build and publish
+#   deploy/make-release --dry-run  build only, into a folder it names
+# The key (KINO_RELEASE_KEY, else ~/.ssh/kino-release) is the one whose public half is deploy/release-signers. Keep it
+# safe and backed up: without it no device takes an update any more; whoever has it can give them any.
+set -eu
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="${KINO_RELEASE_REPO:-M0l0k0plv5/matinee-releases}"
+KEY="${KINO_RELEASE_KEY:-$HOME/.ssh/kino-release}"
+DRY=""
+[ "${1:-}" = "--dry-run" ] && DRY=1
+
+[ -r "$KEY" ] || { echo "!! No release key at $KEY" >&2; exit 1; }
+[ -z "$(git -C "$DIR" status --porcelain --untracked-files=no)" ] || { echo "!! Changes not committed" >&2; exit 1; }
+git -C "$DIR" fetch --quiet origin
+[ "$(git -C "$DIR" rev-parse HEAD)" = "$(git -C "$DIR" rev-parse origin/main)" ] ||
+  { echo "!! HEAD is not what is pushed on main" >&2; exit 1; }
+
+commit="$(git -C "$DIR" rev-parse HEAD)"
+tag="v$(git -C "$DIR" log -1 --format=%cd --date=format:%Y.%m.%d.%H%M HEAD)-$(echo "$commit" | cut -c1-7)"
+out="$(mktemp -d)"
+python3 "$DIR/backend/release.py" build "$DIR" "$out" "$KEY" \
+  "https://github.com/$REPO/releases/download/$tag/" "https://github.com/$REPO/releases/latest/download/manifest.json" >/dev/null
+echo "Built $tag in $out:"
+ls -l "$out"
+[ -z "$DRY" ] || exit 0
+
+notes="$(git -C "$DIR" log -1 --format=%s HEAD)"
+gh release create "$tag" "$out"/* --repo "$REPO" --title "Matinee $tag" --notes "$notes" --latest
+rm -rf "$out"
+echo "Published: devices take it at their next look (the settings, or at night)."
+echo "Install anew: curl -fsSL https://github.com/$REPO/releases/latest/download/get-kino | sh"

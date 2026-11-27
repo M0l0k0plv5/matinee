@@ -1,0 +1,107 @@
+#!/bin/sh
+# A quick look whether the TV computer is all right, line by line, from afar too:
+#   ssh <the TV computer> ~/kino/deploy/check
+# Each line starts with "ok", "!!" (wrong) or "--" (not there to look at); the exit code is the number of "!!".
+# Runs as Matinee's user, needs no root, changes nothing (the volume is only read). deploy/diag collects everything.
+PORT="${KINO_PORT:-8765}"
+URL="http://127.0.0.1:$PORT"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"  # PipeWire's socket, from ssh too
+BAD=0
+ok() { echo "ok  $*"; }
+bad() { echo "!!  $*"; BAD=$((BAD + 1)); }
+none() { echo "--  $*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+in20() { if have timeout; then timeout 20 "$@"; else "$@"; fi; }  # a hung tool must not hang this
+
+if have systemctl && systemctl is-active --quiet kino 2>/dev/null; then ok "the service runs"
+elif have systemctl; then bad "the service does not run: systemctl status kino"
+fi
+
+# the backend: the page's cookie first (only Matinee's page may talk to it, see allowed() in backend/http_api.py)
+JAR="$(mktemp)"
+trap 'rm -f "$JAR"' EXIT
+if ! curl -s -m 5 -o /dev/null -c "$JAR" "$URL/"; then
+  bad "Matinee does not answer on $URL"
+else
+  code=$(curl -s -m 10 -o /dev/null -w '%{http_code}' -b "$JAR" "$URL/session")
+  case "$code" in
+    200) ok "Matinee answers and is signed in to Jellyfin" ;;
+    503) bad "Matinee answers but is not signed in to Jellyfin (or the server is away)" ;;
+    *) bad "Matinee answers /session with $code" ;;
+  esac
+  playing=$(curl -s -m 5 -b "$JAR" "$URL/status" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("playing"))' 2>/dev/null)
+  [ "$playing" = True ] && ok "something plays right now"
+  answer=$(curl -s -m 10 -b "$JAR" -H 'Content-Type: application/json' -d '{"step": 0}' -w '\n%{http_code}' "$URL/volume")
+  volume=$(echo "$answer" | head -1 | python3 -c 'import json, sys; print(json.load(sys.stdin)["volume"])' 2>/dev/null)
+  case "$(echo "$answer" | tail -1):$volume" in
+    403:*) none "not in cage: the volume is the desktop's" ;;
+    200:[0-9]*) ok "the volume can be set: at $volume %" ;;
+    *) bad "the volume cannot be read (PipeWire: wpctl status)" ;;
+  esac
+fi
+
+# the screen
+states=$(cat /sys/class/drm/card*-*/status 2>/dev/null)
+if [ -z "$states" ]; then none "no screen outputs to look at"
+elif echo "$states" | grep -qx connected; then ok "a screen is connected"
+else none "no screen connected (the TV off?)"
+fi
+
+# cage with the legacy DRM interface (the launcher's WLR_DRM_NO_ATOMIC), and what the atomic one did
+cage=$(pgrep -x cage | head -1)
+if [ -z "$cage" ]; then none "cage does not run"
+elif tr '\0' '\n' < "/proc/$cage/environ" 2>/dev/null | grep -qx 'WLR_DRM_NO_ATOMIC=1'; then
+  ok "cage uses the legacy DRM interface"
+else
+  bad "cage runs without WLR_DRM_NO_ATOMIC=1 (started by an old launcher? sudo systemctl restart kino)"
+fi
+up=$([ -n "$cage" ] && ps -o etimes= -p "$cage" 2>/dev/null | tr -d ' ')
+if [ -n "$up" ] && have journalctl; then
+  # since cage started (one before it may have run otherwise); Matinee's lines are tagged kino (see deploy/diag)
+  atomic=$(in20 journalctl -q --no-pager -o cat -t kino --since "@$(( $(date +%s) - up ))" 2>/dev/null \
+    | grep -c 'Atomic commit failed')
+  if [ "${atomic:-0}" -eq 0 ]; then ok "no failed atomic commits since cage started ($((up / 60)) minutes ago)"
+  else bad "$atomic failed atomic commits since cage started ($((up / 60)) minutes ago)"
+  fi
+fi
+
+# Bluetooth: what is connected, the remote among them
+if have bluetoothctl; then
+  connected=$(in20 bluetoothctl devices Connected 2>/dev/null | sed -n 's/^Device \([0-9A-F:]*\) \(.*\)/\1 \2/p')
+  if [ -z "$connected" ]; then
+    bad "no Bluetooth device connected (the remote asleep? press a key and look again)"
+  else
+    remote=no
+    echo "$connected" | while read -r mac name; do
+      icon=$(in20 bluetoothctl info "$mac" 2>/dev/null | sed -n 's/^[[:space:]]*Icon: //p')
+      echo "    $name ($icon)"
+    done
+    for mac in $(echo "$connected" | cut -d' ' -f1); do
+      in20 bluetoothctl info "$mac" 2>/dev/null | grep -Eq 'Icon: input-|UUID: Human Interface' && remote=yes
+    done
+    if [ "$remote" = yes ]; then ok "a remote is connected"; else bad "no remote connected"; fi
+  fi
+else
+  none "no Bluetooth (bluetoothctl not installed)"
+fi
+
+# the sound goes where: the default output
+if have wpctl; then
+  sink=$(wpctl inspect @DEFAULT_AUDIO_SINK@ 2>/dev/null | sed -n 's/.*node.description = "\(.*\)"/\1/p' | head -1)
+  if [ -n "$sink" ]; then ok "the sound goes to: $sink"; else bad "no sound output (wpctl status)"; fi
+fi
+
+# the clock: synchronized (Jellyfin's sign-in needs the right time)
+if have timedatectl; then
+  if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = yes ]; then ok "the clock is synchronized"
+  else bad "the clock is not synchronized: timedatectl timesync-status"
+  fi
+fi
+
+# room on the disk
+free=$(df -Pk "$HOME" 2>/dev/null | awk 'NR == 2 { print int($4 / 1048576) }')
+if [ -n "$free" ]; then
+  if [ "$free" -ge 2 ]; then ok "$free GB free"; else bad "only $free GB free on the disk"; fi
+fi
+
+exit "$BAD"

@@ -1,0 +1,122 @@
+#!/bin/sh
+# Nightly (kino-update.timer): the newest Matinee from where it was cloned, and Matinee started again to use it, but never
+# in the middle of a film or a song: then the next night. Runs as root (the restart); git as the owner of the checkout.
+# The service runs a copy owned by root (deploy/install.sh puts it in /usr/local/libexec) with the checkout as
+# argument: the one in the checkout belongs to its owner and changes with every pull, so it must not run as root.
+KINO="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+STATE="${KINO_UPDATE_STATE:-/var/lib/kino-update}"  # remembers a restart still owed
+OWNER="$(stat -c %U "$KINO")"
+as_owner() { if [ "$(id -u)" = 0 ]; then runuser -u "$OWNER" -- "$@"; else "$@"; fi; }
+
+PORT="${KINO_PORT:-8765}"
+WAIT="${KINO_UPDATE_WAIT:-60}"  # seconds for the backend to answer after the restart
+
+# Whether Matinee's backend answers, twice a few seconds apart (one that starts and falls over at once does not count).
+# It runs with the TV off too: only Chromium waits for a screen.
+answers() {
+  n=0
+  while [ "$n" -lt "$WAIT" ]; do
+    if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$PORT/"; then
+      sleep 3
+      curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$PORT/" && return 0
+    fi
+    sleep 1
+    n=$((n + 1))
+  done
+  return 1
+}
+
+# The checkout is a copy of what is on GitHub, nothing is changed in it by hand: it is set to the newest version
+# there whatever happened (a history rewritten, say, which a pull would refuse every night from then on). A version
+# that did not start (see below) is left out until a newer one comes.
+# Matinee fallen over and given up on by systemd (a stop that hung, say): started again first, before anything that
+# can fail on its way (GitHub not reachable at night): otherwise the TV stayed black until an update went through
+if systemctl is-failed --quiet kino 2>/dev/null; then
+  if systemctl start kino; then echo "Matinee had stopped: started again."; else echo "Matinee had stopped and could not be started." >&2; fi
+fi
+mkdir -p "$STATE"
+# Installed from packages (backend/release.py) rather than a checkout: the same steps, by release.py (the newest
+# package for the newest commit, the link turned for a reset)
+if [ -f "$KINO/RELEASE" ] && [ ! -e "$KINO/.git" ]; then
+  release() { as_owner python3 "$KINO/backend/release.py" "$@"; }
+  current() { release head; }
+  fetch_newest() { release newest; }
+  set_newest() { release install >/dev/null; }
+  set_to() { release switch "$1" >/dev/null; }
+  PROBATION="${KINO_UPDATE_PROBATION:-$(getent passwd "$OWNER" | cut -d: -f6)/.local/state/kino/update}"
+else
+  current() { as_owner git -C "$KINO" rev-parse HEAD; }
+  fetch_newest() {
+    as_owner git -C "$KINO" fetch --quiet && as_owner git -C "$KINO" rev-parse "origin/$(as_owner git -C "$KINO" rev-parse --abbrev-ref HEAD)"
+  }
+  set_newest() { as_owner git -C "$KINO" reset --quiet --hard "$newest"; }
+  set_to() { as_owner git -C "$KINO" reset --quiet --hard "$1"; }
+  # the probation shared with kino --session and the settings' update (see PROBATION in backend/updates.py)
+  PROBATION="$KINO/.git/kino-update"
+fi
+on_probation() {  # $1 the version before, $2 the new one: kino --session counts its starts until its page comes up
+  as_owner sh -c 'mkdir -p "$1" && { [ -s "$1/to" ] || echo "$2" > "$1/from"; } && echo "$3" > "$1/to" && rm -f "$1/tries"' \
+    sh "$PROBATION" "$1" "$2"
+}
+before="$(current)"
+# "Look for Updates: Only When I Ask" in the settings: nothing fetched by itself, not even at night; a restart still
+# owed for an update made before (something played then) comes all the same
+CONF="${KINO_CONF:-$(getent passwd "$OWNER" | cut -d: -f6)/.config/kino/config.json}"
+if [ -r "$CONF" ] && python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1])).get("updatecheck") != "manual")' "$CONF" 2>/dev/null; then
+  [ -e "$STATE/restart" ] || { echo "Updates only when asked for (Settings → System): nothing looked for."; exit 0; }
+  echo "Updates only when asked for: nothing looked for, the restart still owed comes now."
+  newest="$before"
+else
+newest="$(fetch_newest)" && [ -n "$newest" ] || { echo "Update failed, nothing changed." >&2; exit 1; }
+if { [ -e "$STATE/bad" ] && [ "$newest" = "$(cat "$STATE/bad")" ]; } ||
+   { [ -e "$PROBATION/bad" ] && [ "$newest" = "$(cat "$PROBATION/bad")" ]; }; then
+  echo "The newest version did not start: Matinee stays on the one before until a newer one comes."
+  exit 0
+fi
+# Nothing changed while something plays: the running Matinee reads its page, its translations and the player's script
+# from the checkout as it goes, and a new version of them beside the old backend broke the page at its next reload
+if [ "$newest" != "$before" ] && pgrep -x mpv >/dev/null; then
+  echo "A new version is there; something is playing: Matinee updates next night."
+  exit 0
+fi
+set_newest || { echo "Update failed, nothing changed." >&2; exit 1; }
+if [ "$(current)" != "$before" ]; then
+  on_probation "$before" "$newest"
+  touch "$STATE/restart"
+  [ -e "$STATE/previous" ] || echo "$before" > "$STATE/previous"  # the version before the first one not started yet
+fi
+fi  # (looked for)
+[ -e "$STATE/restart" ] || { echo "Matinee is up to date."; exit 0; }
+if pgrep -x mpv >/dev/null; then
+  echo "Updated; something is playing: Matinee starts again next night."
+  exit 0
+fi
+systemctl restart kino || { echo "Updated, but Matinee could not be started again." >&2; exit 1; }
+rm -f "$STATE/restart"
+if answers; then
+  current > "$STATE/good"
+  rm -f "$STATE/bad" "$STATE/previous"
+  echo "Updated, Matinee started again."
+  exit 0
+fi
+# Not answering: on a TV looked after from afar it would stay black until someone came. Back to the last version that
+# started, which stays until a newer one than this comes.
+broken="$(current)"
+good="$(cat "$STATE/good" 2>/dev/null || true)"
+[ "$good" != "$(cat "$PROBATION/bad" 2>/dev/null)" ] || good=""  # started, but its page did not come up
+[ -n "$good" ] && [ "$good" != "$broken" ] || good="$(cat "$STATE/previous" 2>/dev/null || echo "$before")"
+rm -f "$STATE/previous"
+if [ "$good" = "$broken" ]; then
+  echo "Updated, but Matinee does not answer, and there is no version before it to go back to." >&2
+  exit 1
+fi
+echo "$broken" > "$STATE/bad"
+as_owner sh -c 'rm -f "$1/from" "$1/to" "$1/tries"; echo "$2" > "$1/bad"' sh "$PROBATION" "$broken"
+set_to "$good"
+systemctl restart kino
+if answers; then
+  echo "The new version did not start: back on the one before, Matinee started again." >&2
+else
+  echo "The new version did not start, and the one before does not answer either." >&2
+fi
+exit 1

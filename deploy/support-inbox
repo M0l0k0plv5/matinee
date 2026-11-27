@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Where Matinee's support reports arrive (backend/support.py): a small HTTP server for whoever supports Matinee, to run
+behind a reverse proxy that does HTTPS (Caddy, nginx), e.g. https://support.example.com/report → this server.
+    deploy/support-inbox --dir ~/kino-reports [--port 8780] [--bind 127.0.0.1]
+A report is a POST to /<code> (six letters and digits, read out by the person on the phone) with deploy/diag's
+.tar.gz; it is kept as <dir>/<date>-<code>.tar.gz, readable only by the user running this. Nothing else is
+answered. Its address goes into deploy/support-url (the path before the code), committed before a release."""
+import argparse
+import re
+import threading
+import time
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+CODE = re.compile(r"/([ACDEFGHJKLMNPQRTUVWXY3479]{6})")
+MAX = 20 * 1024 * 1024
+PER_HOUR = 10  # reports from one address in an hour: more is not someone asking for help
+seen, seen_lock = {}, threading.Lock()
+
+
+class Inbox(BaseHTTPRequestHandler):
+    folder = Path(".")
+
+    def log_message(self, fmt, *args):
+        print(f"{self.address_string()} {fmt % args}", flush=True)
+
+    def answer(self, code, text):
+        body = (text + "\n").encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        self.answer(404, "not found")
+
+    def do_POST(self):
+        m = CODE.fullmatch("/" + self.path.rstrip("/").rsplit("/", 1)[-1])  # the last part: the proxy may keep its path
+        size = int(self.headers.get("Content-Length") or 0)
+        if not m:
+            return self.answer(404, "not found")
+        if not 0 < size <= MAX:
+            return self.answer(413, "too large")
+        # behind the proxy every request comes from it: the address it forwards for
+        who = (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+        now = time.time()
+        with seen_lock:
+            seen[who] = [t for t in seen.get(who, []) if now - t < 3600] + [now]
+            if len(seen[who]) > PER_HOUR:
+                return self.answer(429, "too many")
+        data = self.rfile.read(size)
+        if data[:2] != b"\x1f\x8b":
+            return self.answer(400, "not a report")
+        out = self.folder / f"{datetime.now():%Y%m%d-%H%M%S}-{m.group(1)}.tar.gz"
+        try:
+            with open(out, "xb") as f:
+                f.write(data)
+        except FileExistsError:
+            return self.answer(409, "already there")
+        out.chmod(0o600)
+        print(f"Report {m.group(1)[:3]}-{m.group(1)[3:]} from {who} ({self.headers.get('X-Kino-Version', '?')}): {out}", flush=True)
+        self.answer(200, "ok")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Receives Matinee's support reports.")
+    ap.add_argument("--dir", required=True, type=Path)
+    ap.add_argument("--port", type=int, default=8780)
+    ap.add_argument("--bind", default="127.0.0.1", help="127.0.0.1: only the reverse proxy on this computer reaches it")
+    a = ap.parse_args()
+    a.dir.mkdir(parents=True, exist_ok=True)
+    Inbox.folder = a.dir
+    httpd = ThreadingHTTPServer((a.bind, a.port), Inbox)
+    print(f"Support reports into {a.dir}, on {a.bind}:{httpd.server_port}", flush=True)
+    httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,11 @@
+# The nightly update (deploy/nightly-update), started by kino-update.timer. deploy/install.sh fills in the path
+# and puts a copy of the script owned by root in /usr/local/libexec.
+[Unit]
+Description=Matinee's nightly update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/kino-nightly-update @KINO@
+StateDirectory=kino-update

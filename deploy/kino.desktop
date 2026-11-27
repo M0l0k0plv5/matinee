@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Matinee
+GenericName=Media Player
+Comment=Movies, shows, music, audiobooks and podcasts
+Comment[de]=Filme, Serien, Musik, Hörbücher und Podcasts
+Exec=@KINO@/kino --window
+Icon=@KINO@/deploy/kino.svg
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=Jellyfin;Movie;Show;Media;
+Keywords[de]=Jellyfin;Film;Serie;Mediaplayer;
+StartupWMClass=chrome-127.0.0.1__-Default

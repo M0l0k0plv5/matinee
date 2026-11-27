@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""The boot splash's pictures (deploy/plymouth): web/icon.svg drawn at 360 px by headless Chromium. watermark.png is
+the logo as it stands; breath-NN.png are the cards opening a little, from closed to open, as the UI's logo does
+while it waits (style.css, intro-breathe). deploy/boot.sh makes Plymouth's loop of them (30 pictures a second): each
+shown twice, there and back, which is one breath in about 3 s.
+
+    tests/make-splash
+"""
+import base64
+import math
+import re
+import sys
+import urllib.parse
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tests"))
+from helpers import Chromium  # noqa: E402
+
+SIZE = 360       # --intro-logo
+FRAMES = 24      # from closed to open; 92 pictures of the loop with those between shown again on the way back
+BREATHE = 0.14   # --intro-breathe: by this part of each card's angle
+OUT = ROOT / "deploy" / "plymouth"
+
+
+def logo(part):
+    """The icon with its cards turned further by this part of their angles."""
+    svg = (ROOT / "web" / "icon.svg").read_text()
+    svg = re.sub(r"rotate\((-?\d+)\)", lambda m: f"rotate({int(m.group(1)) * (1 + part):.3f})", svg)
+    return svg.replace("<svg ", f'<svg width="{SIZE}" height="{SIZE}" style="display:block" ', 1)
+
+
+def main():
+    b = Chromium("about:blank")
+    try:
+        b.call("Emulation.setDeviceMetricsOverride", width=SIZE, height=SIZE, deviceScaleFactor=1, mobile=False)
+        b.call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+
+        def draw(part, name):
+            page = f'<body style="margin:0;background:transparent">{logo(part)}</body>'
+            b.call("Page.navigate", url="data:text/html;charset=utf-8," + urllib.parse.quote(page))
+            b.wait_js("document.readyState === 'complete' && !!document.querySelector('svg')", msg=name)
+            shot = b.call("Page.captureScreenshot", format="png",
+                          clip={"x": 0, "y": 0, "width": SIZE, "height": SIZE, "scale": 1})
+            (OUT / name).write_bytes(base64.b64decode(shot["data"]))
+
+        draw(0, "watermark.png")
+        for old in OUT.glob("breath-*.png"):
+            old.unlink()
+        for i in range(FRAMES):  # eased at both ends, as ease-in-out
+            draw(BREATHE * (1 - math.cos(math.pi * i / (FRAMES - 1))) / 2, f"breath-{i:02d}.png")
+    finally:
+        b.close()
+    print(f"{FRAMES} frames, {sum(f.stat().st_size for f in OUT.glob('breath-*.png')) // 1024} KB")
+
+
+if __name__ == "__main__":
+    main()
