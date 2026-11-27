@@ -169,13 +169,17 @@ def detect_commit():
 COMMIT = detect_commit()
 
 
+LANGS = ("en", "de", "fr", "es", "nl")  # the UI's languages (web/i18n.js; French, Spanish and Dutch: Matinee's)
+
+
 def detect_lang():
-    """UI language (German or English): "language" in config.json, else KINO_LANG, else the system locale."""
-    if conf.get("language") in ("de", "en"):
+    """UI language: "language" in config.json, else KINO_LANG, else the system locale; English if none of LANGS."""
+    if conf.get("language") in LANGS:
         return conf["language"]
     for var in ("KINO_LANG", "LC_ALL", "LC_MESSAGES", "LANG"):
         if os.environ.get(var):
-            return "de" if os.environ[var].lower().startswith("de") else "en"
+            code = os.environ[var].lower()[:2]
+            return code if code in LANGS else "en"
     return "en"
 
 
@@ -230,9 +234,82 @@ STRINGS = {
         "sb_sponsor": "Sponsor", "sb_selfpromo": "Eigenwerbung", "sb_interaction": "Abo-Erinnerung",
         "autooff": "Ausschalten in einer Minute   Beliebige Taste ▸ Anlassen",
     },
+    "fr": {
+        "Intro": "Passer le générique", "Recap": "Passer le récapitulatif", "Preview": "Passer l'aperçu",
+        "next": "Épisode suivant", "countdown": "À suivre : {label}  ({left})",
+        "reduced": "Connexion lente : qualité réduite ({rate} Mbit/s)",
+        "converted": "{what} : converti par Jellyfin pour cet appareil",
+        "still": "Vous regardez toujours ?   OK ▸ Épisode suivant   Retour ▸ Arrêter",
+        "volume": "Volume : {v} %", "ends": "Se termine à {time}", "playerMenu": "Tab ou clic droit : audio et sous-titres",
+        "p_handoff": "Continuer sur", "p_handing": "Suite sur {name}…",
+        "p_info": "Infos", "p_chapters": "Chapitres", "p_audio": "Audio", "p_subtitles": "Sous-titres", "p_off": "Désactivés",
+        "p_chapter": "Chapitre {n}", "p_forced": "Forcés", "p_speed": "Vitesse", "p_normal": "Normale", "p_decimal": ",",
+        "p_find": "Chercher des sous-titres…", "p_looking": "Recherche de sous-titres…", "p_none": "Aucun sous-titre trouvé",
+        "p_failed": "La recherche de sous-titres n'a pas abouti",
+        "sub_getting": "Téléchargement des sous-titres…", "sub_added": "Sous-titres ajoutés",
+        "sub_failed": "Impossible de télécharger ces sous-titres",
+        "lost": "Connexion au serveur perdue, en attente…   Retour ▸ Arrêter",
+        "handoff_back": "{name} n'a pas répondu : la lecture continue ici",
+        "tv_left": "encore {min} min", "tv_next": "Puis à {time} : {title}", "own_decade": "Films des années {decade}",
+        "sleep_off": "Minuterie désactivée", "sleep_min": "Minuterie : {m} min", "sleep_end": "Minuterie : à la fin",
+        "sleep_chapter": "Minuterie : à la fin du chapitre",
+        "skipped_Intro": "Générique passé", "skipped_Recap": "Récapitulatif passé", "skipped_Preview": "Aperçu passé",
+        "sb_skip": "Passer : {what}", "sb_skipped": "{what} passé",
+        "sb_sponsor": "Sponsor", "sb_selfpromo": "Autopromotion", "sb_interaction": "Rappel",
+        "autooff": "Extinction dans une minute   N'importe quelle touche ▸ Rester allumé",
+    },
+    "es": {
+        "Intro": "Saltar intro", "Recap": "Saltar resumen", "Preview": "Saltar avance",
+        "next": "Siguiente episodio", "countdown": "A continuación: {label}  ({left})",
+        "reduced": "Conexión lenta: menor calidad ({rate} Mbit/s)",
+        "converted": "{what}: convertido por Jellyfin para este dispositivo",
+        "still": "¿Sigues viendo?   OK ▸ Siguiente episodio   Atrás ▸ Detener",
+        "volume": "Volumen: {v} %", "ends": "Termina a las {time}", "playerMenu": "Tab o clic derecho: audio y subtítulos",
+        "p_handoff": "Seguir en", "p_handing": "Sigue en {name}…",
+        "p_info": "Info", "p_chapters": "Capítulos", "p_audio": "Audio", "p_subtitles": "Subtítulos", "p_off": "Desactivados",
+        "p_chapter": "Capítulo {n}", "p_forced": "Forzados", "p_speed": "Velocidad", "p_normal": "Normal", "p_decimal": ",",
+        "p_find": "Buscar subtítulos…", "p_looking": "Buscando subtítulos…", "p_none": "No se encontraron subtítulos",
+        "p_failed": "La búsqueda de subtítulos no ha funcionado",
+        "sub_getting": "Descargando subtítulos…", "sub_added": "Subtítulos añadidos",
+        "sub_failed": "No se pudieron descargar estos subtítulos",
+        "lost": "Conexión con el servidor perdida, esperando…   Atrás ▸ Detener",
+        "handoff_back": "{name} no respondió: sigue aquí",
+        "tv_left": "quedan {min} min", "tv_next": "Después, a las {time}: {title}", "own_decade": "Películas de los {decade}",
+        "sleep_off": "Temporizador desactivado", "sleep_min": "Temporizador: {m} min", "sleep_end": "Temporizador: al final",
+        "sleep_chapter": "Temporizador: al final del capítulo",
+        "skipped_Intro": "Intro saltada", "skipped_Recap": "Resumen saltado", "skipped_Preview": "Avance saltado",
+        "sb_skip": "Saltar {what}", "sb_skipped": "{what} saltado",
+        "sb_sponsor": "Patrocinio", "sb_selfpromo": "Autopromoción", "sb_interaction": "Recordatorio",
+        "autooff": "Apagando en un minuto   Cualquier botón ▸ Seguir encendido",
+    },
+    "nl": {
+        "Intro": "Intro overslaan", "Recap": "Terugblik overslaan", "Preview": "Vooruitblik overslaan",
+        "next": "Volgende aflevering", "countdown": "Hierna: {label}  ({left})",
+        "reduced": "Trage verbinding: lagere kwaliteit ({rate} Mbit/s)",
+        "converted": "{what}: door Jellyfin omgezet voor dit apparaat",
+        "still": "Kijk je nog?   OK ▸ Volgende aflevering   Terug ▸ Stoppen",
+        "volume": "Volume: {v} %", "ends": "Eindigt om {time}", "playerMenu": "Tab of rechtsklik: audio en ondertitels",
+        "p_handoff": "Verder op", "p_handing": "Gaat verder op {name}…",
+        "p_info": "Info", "p_chapters": "Hoofdstukken", "p_audio": "Audio", "p_subtitles": "Ondertitels", "p_off": "Uit",
+        "p_chapter": "Hoofdstuk {n}", "p_forced": "Geforceerd", "p_speed": "Snelheid", "p_normal": "Normaal", "p_decimal": ",",
+        "p_find": "Ondertitels zoeken…", "p_looking": "Ondertitels zoeken…", "p_none": "Geen ondertitels gevonden",
+        "p_failed": "Het zoeken naar ondertitels is mislukt",
+        "sub_getting": "Ondertitels downloaden…", "sub_added": "Ondertitels toegevoegd",
+        "sub_failed": "Deze ondertitels konden niet worden gedownload",
+        "lost": "Verbinding met de server verbroken, even wachten…   Terug ▸ Stoppen",
+        "handoff_back": "{name} reageerde niet: gaat hier verder",
+        "tv_left": "nog {min} min", "tv_next": "Daarna om {time}: {title}", "own_decade": "Films uit de jaren {decade}",
+        "sleep_off": "Slaaptimer uit", "sleep_min": "Slaaptimer: {m} min", "sleep_end": "Slaaptimer: aan het einde",
+        "sleep_chapter": "Slaaptimer: aan het einde van het hoofdstuk",
+        "skipped_Intro": "Intro overgeslagen", "skipped_Recap": "Terugblik overgeslagen", "skipped_Preview": "Vooruitblik overgeslagen",
+        "sb_skip": "{what} overslaan", "sb_skipped": "{what} overgeslagen",
+        "sb_sponsor": "Sponsor", "sb_selfpromo": "Zelfpromotie", "sb_interaction": "Herinnering",
+        "autooff": "Uitschakelen over een minuut   Willekeurige knop ▸ Aan laten",
+    },
 }
 # Preferred audio and subtitle languages for mpv
-TRACK_LANGS = {"de": ("de,deu,ger,en,eng", "de,deu,ger"), "en": ("en,eng", "en,eng")}
+TRACK_LANGS = {"de": ("de,deu,ger,en,eng", "de,deu,ger"), "en": ("en,eng", "en,eng"),
+               "fr": ("fr,fra,fre,en,eng", "fr,fra,fre"), "es": ("es,spa,en,eng", "es,spa"), "nl": ("nl,nld,dut,en,eng", "nl,nld,dut")}
 
 
 def t(key, **kw):

@@ -14,10 +14,10 @@ from .sound import AUDIO_SYNC, SYNC_DEVICE
 
 
 # What the settings page may change, and to which values
-SETTINGS = {"language": ("en", "de"), "quality": ("auto", "original", "20", "8", "4", "2"),
+SETTINGS = {"language": core.LANGS, "quality": ("auto", "original", "20", "8", "4", "2"),
             "screensaver": ("off", "5", "10", "30"), "ask": ("off", "2", "3", "5"),
-            "audio": ("auto", "de", "en", "original"), "subtitles": ("off", "auto", "always"),
-            "sublang": ("auto", "de", "en"), "framerate": ("off", "on"), "saverweather": ("on", "off"),
+            "audio": ("auto", *core.LANGS, "original"), "subtitles": ("off", "auto", "always"),
+            "sublang": ("auto", *core.LANGS), "framerate": ("off", "on"), "saverweather": ("on", "off"),
             "sleepend": ("stop", "poweroff"), "scrobble": ("on", "off"),
             "moviesound": ("level", "original"), "subsize": ("s", "m", "l", "xl"), "autooff": ("off", "2", "4", "8"),
             "startwith": ("menu", "last", "live"), "autoupdate": ("off", "on"), "updatecheck": ("auto", "manual"),

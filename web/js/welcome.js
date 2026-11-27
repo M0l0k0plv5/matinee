@@ -40,7 +40,7 @@ Object.assign(views, {
     };
     if (step === "lang") {
       // both languages at once: whoever reads neither yet finds theirs
-      return page(KINO_LOGO, "Willkommen bei Matinee · Welcome to Matinee", t("welcomeLangHint"), `<div class="slist">${[["de", "Deutsch"], ["en", "English"]]
+      return page(KINO_LOGO, WELCOME_ALL, t("welcomeLangHint"), `<div class="slist">${LANG_CHOICES
         .map(([v, name]) => srow(`welcome-${v}`, name, v === LANG ? "✓" : "", `data-action="welcomelang" data-val="${v}"${v === LANG ? " data-autofocus" : ""}`)).join("")}</div>`);
     }
     if (step === "net") {

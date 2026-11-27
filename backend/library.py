@@ -343,7 +343,7 @@ def hide(kind, item_id, on=True):
 # Subtitles looked for on the internet for a movie or an episode (its options: "Find Subtitles"): Jellyfin's own
 # search, through a subtitle plugin on the server such as OpenSubtitles; the one chosen Jellyfin downloads and keeps
 # with the video, so it is among the subtitles from then on, on every device
-SUB_SEARCH_LANGS = {"de": "ger", "en": "eng"}  # as Jellyfin names them (ISO 639-2)
+SUB_SEARCH_LANGS = {"de": "ger", "en": "eng", "fr": "fre", "es": "spa", "nl": "dut"}  # as Jellyfin names them (ISO 639-2)
 SUB_ID = re.compile(r"[^/\\\s]{1,300}")
 
 

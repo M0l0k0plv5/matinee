@@ -1,6 +1,7 @@
 "use strict";
 
-// UI strings in English and German. The backend picks the language and sets it on <html lang>.
+// UI strings in English and German (Matinee's in French, Spanish and Dutch too: web/i18n-more.js). The backend picks
+// the language and sets it on <html lang>.
 // Placeholders like {name} are filled in by t().
 const STRINGS = {
   en: {
@@ -1693,7 +1694,11 @@ const STRINGS = {
   },
 };
 
-const LANG = document.documentElement.lang === "de" ? "de" : "en";
+// the languages one can choose (settings, first start), each in its own words
+const WELCOME_ALL = "Welcome · Willkommen · Bienvenue · Bienvenido · Welkom";
+const LANG_CHOICES = [["en", "English"], ["de", "Deutsch"], ["fr", "Français"], ["es", "Español"], ["nl", "Nederlands"]];
+// French, Spanish and Dutch: Matinee's (web/i18n-more.js); without their strings, English
+const LANG = ["de", "fr", "es", "nl"].includes(document.documentElement.lang) ? document.documentElement.lang : "en";
 
 // Podcast categories: the feeds give the directory's English names; the ones other languages have names for
 const POD_CATEGORIES = {
@@ -1704,6 +1709,6 @@ const POD_CATEGORIES = {
 };
 
 function t(key, vars = {}) {
-  const s = STRINGS[LANG][key] ?? STRINGS.en[key] ?? key;
+  const s = STRINGS[LANG]?.[key] ?? STRINGS.en[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }

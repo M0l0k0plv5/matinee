@@ -23,7 +23,9 @@ LOCAL_ADMIN_FILE = core.CONF_DIR / "local-admin.json"
 # in each library's folder: Jellyfin skips an empty one, and does not watch it for new films after (seen with 12.4)
 LOCAL_KEEP = ".kino"
 LOCAL_KEEP_TEXT = "Matinee keeps this file here so that Jellyfin watches this folder for new films. Leave it here.\n"
-LOCAL_FOLDERS = {"de": (("Filme", "movies"), ("Serien", "tvshows")), "en": (("Movies", "movies"), ("Shows", "tvshows"))}
+LOCAL_FOLDERS = {"de": (("Filme", "movies"), ("Serien", "tvshows")), "en": (("Movies", "movies"), ("Shows", "tvshows")),
+                 "fr": (("Films", "movies"), ("Séries", "tvshows")), "es": (("Películas", "movies"), ("Series", "tvshows")),
+                 "nl": (("Films", "movies"), ("Series", "tvshows"))}
 
 
 def local_call(path, method="GET", body=None, token=None, timeout=10):

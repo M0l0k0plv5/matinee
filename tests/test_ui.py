@@ -1297,7 +1297,7 @@ class UiTest(UiBase):
         try:
             self.assertEqual(self.focus(), "set-audio")
             self.b.key("Enter")
-            self.assertEqual(self.texts("#options .opt"), ["Automatic", "Deutsch", "English", "Original"])
+            self.assertEqual(self.texts("#options .opt"), ["Automatic", "Deutsch", "English", "Français", "Español", "Nederlands", "Original"])
             self.b.key("ArrowDown")
             self.b.key("Enter")
             self.b.wait_js("document.querySelector('[data-k=set-audio] .sval')?.textContent === 'Deutsch'", msg="set")
@@ -4020,7 +4020,7 @@ class UiStartupTest(unittest.TestCase):
             browser.wait_js("current.name === 'welcome' && document.activeElement?.dataset.k === 'welcome-en'", msg="the language first")
             top = browser.js("$('.welcome-steps').getBoundingClientRect().top")
             self.assertGreater(top, 20, "the steps whole on the screen, below its top edge")
-            browser.key("ArrowUp")
+            browser.js("focusEl($('[data-k=welcome-de]'))")
             browser.key("Enter")  # Deutsch: the page again in it, on the next step
             browser.wait_js("current.name === 'welcome' && current.args.step === 'net' && $('.welcome h1').textContent === 'Netzwerk'",
                             timeout=15, msg="the network, in German")

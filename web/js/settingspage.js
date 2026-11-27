@@ -25,9 +25,9 @@ Object.assign(views, {
       ...["20", "8", "4", "2"].map((n) => [n, t("mbit", { n })])];
     const saverOpts = [["off", t("off")], ...["5", "10", "30"].map((n) => [n, t("minutes", { m: n })])];
     const askOpts = [["off", t("off")], ...["2", "3", "5"].map((n) => [n, t("afterEpisodes", { n })])];
-    const audioOpts = [["auto", t("audioAuto")], ["de", "Deutsch"], ["en", "English"], ["original", t("audioOriginal")]];
+    const audioOpts = [["auto", t("audioAuto")], ["de", "Deutsch"], ["en", "English"], ["fr", "Français"], ["es", "Español"], ["nl", "Nederlands"], ["original", t("audioOriginal")]];
     const subsOpts = [["off", t("subsOff")], ["auto", t("subsAuto")], ["always", t("subsAlways")]];
-    const sublangOpts = [["auto", t("sublangAuto")], ["de", "Deutsch"], ["en", "English"]];
+    const sublangOpts = [["auto", t("sublangAuto")], ["de", "Deutsch"], ["en", "English"], ["fr", "Français"], ["es", "Español"], ["nl", "Nederlands"]];
     // only on the TV computer (in cage), where Matinee has the screen to itself
     const displayOpts = s.displayModes?.length && [["auto", t("displayAuto")], ["native", t("displayNative")],
       ...s.displayModes.map((m) => [m, m.replace("x", "×").replace("@", " · ") + " Hz"])];
@@ -46,7 +46,7 @@ Object.assign(views, {
       // (signing out, switching off) last, the apps' own below; screensaver, subtitles and software updates a page
       // further down, as there
       general: `${part("", `
-      ${open("basics", t("setGeneral"), now("language", [["en", "English"], ["de", "Deutsch"]]), t("setGeneralHint"))}
+      ${open("basics", t("setGeneral"), now("language", LANG_CHOICES), t("setGeneralHint"))}
       ${open("av", t("setAv"), now("audio", audioOpts), t("setAvHint"))}
       ${s.wifi ? line("set-wifi", t("wifi"), "", `data-action="wifi"`, t("wifiHint")) : ""}
       ${s.hdmi?.available ? line("set-hdmi", t("hdmi"), esc(s.hdmi.inputs.map((x) => x.name).join(", ") || t("hdmiNone")), `data-action="hdmi"`, t("hdmiHint")) : ""}
@@ -70,7 +70,7 @@ Object.assign(views, {
         + part(t("accOther"), open("everywhere", t("signInEverywhere"), "", t("signInEverywhereHint"))
           + line("acc-signout", t("signOut"), "", `data-action="signout"`, t("signOutHint"))),
       basics: `${part(t("setGeneral"), `
-      ${choice("language", t("language"), [["en", "English"], ["de", "Deutsch"]], t("languageHint"))}
+      ${choice("language", t("language"), LANG_CHOICES, t("languageHint"))}
       ${choice("startwith", t("startWith"), [["menu", t("startMenu")], ["last", t("startLast")], ["live", t("startLive")]], t("startWithHint"))}
       ${choice("effects", t("effects"), [["auto", t("effectsAuto")], ["full", t("effectsFull")], ["calm", t("effectsCalm")], ["light", t("effectsLight")]],
         t("effectsHint", { now: t({ full: "effectsFull", calm: "effectsCalm", light: "effectsLight" }[fxNow()]) }))}
@@ -223,7 +223,7 @@ Object.assign(views, {
     const r = await fetch(`/subtitles/search?id=${encodeURIComponent(id)}&lang=${encodeURIComponent(lang)}`);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || t("subsFailed"));
-    const chips = [["de", "Deutsch"], ["en", "English"]].map(([v, label]) =>
+    const chips = [["de", "Deutsch"], ["en", "English"], ["fr", "Français"], ["es", "Español"], ["nl", "Nederlands"]].map(([v, label]) =>
       `<div class="chip f${data.lang === v ? " sel" : ""}" tabindex="-1" data-k="sublang-${v}" data-action="sublangopt" data-val="${v}">${label}</div>`).join("");
     const rows = data.items.map((s, i) => srow(`sub-${i}`, s.name || s.provider,
       esc([s.match && t("subsMatch"), s.forced && t("subsForced"), s.hearing && "SDH", s.format.toUpperCase(), s.provider,

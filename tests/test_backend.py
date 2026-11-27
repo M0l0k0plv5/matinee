@@ -63,7 +63,7 @@ class BackendTest(unittest.TestCase):
                                          "format": "srt", "downloads": 1234, "match": True, "forced": False, "hearing": False})
         self.assertEqual(self.backend.request("/subtitles/search?id=m1&lang=en")[1]["items"], [])
         self.assertEqual(self.backend.request("/subtitles/search?id=m1")[1]["lang"], "en", "the subtitle language of the settings")
-        for bad in ("/subtitles/search?id=../x&lang=de", "/subtitles/search?id=m1&lang=fr"):
+        for bad in ("/subtitles/search?id=../x&lang=de", "/subtitles/search?id=m1&lang=xx"):
             self.assertEqual(self.backend.request(bad)[0], 400, bad)
         self.assertEqual(self.backend.request("/subtitles/get", {"id": "m1", "subtitle": "os-ger-1"})[0], 200)
         self.assertEqual(self.mock.subs_downloaded, [("m1", "os-ger-1")], "Jellyfin downloads it")
@@ -2031,7 +2031,7 @@ class SettingsTest(unittest.TestCase):
 
     def test_invalid_settings_are_rejected(self):
         before = self.config()
-        for body in ({"quality": "999"}, {"language": "fr"}, {"screensaver": "1"}, {"ask": "0"}, {"server": "http://evil.example"}, {"password": "x"},
+        for body in ({"quality": "999"}, {"language": "xx"}, {"screensaver": "1"}, {"ask": "0"}, {"server": "http://evil.example"}, {"password": "x"},
                      {"quality": "4", "server": "http://evil.example"}, {}):
             self.assertEqual(self.backend.request("/settings", body)[0], 400, body)
         self.assertEqual(self.config(), before, "nothing written")

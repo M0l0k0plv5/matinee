@@ -121,6 +121,12 @@ LANG_NAMES = {
     "de": ["Deutsch", "Englisch", "Französisch", "Spanisch", "Italienisch", "Niederländisch", "Portugiesisch", "Russisch",
            "Japanisch", "Koreanisch", "Chinesisch", "Tschechisch", "Polnisch", "Türkisch", "Schwedisch", "Dänisch",
            "Norwegisch", "Finnisch", "Griechisch", "Ungarisch"],
+    "fr": ["Allemand", "Anglais", "Français", "Espagnol", "Italien", "Néerlandais", "Portugais", "Russe", "Japonais",
+           "Coréen", "Chinois", "Tchèque", "Polonais", "Turc", "Suédois", "Danois", "Norvégien", "Finnois", "Grec", "Hongrois"],
+    "es": ["Alemán", "Inglés", "Francés", "Español", "Italiano", "Neerlandés", "Portugués", "Ruso", "Japonés", "Coreano",
+           "Chino", "Checo", "Polaco", "Turco", "Sueco", "Danés", "Noruego", "Finés", "Griego", "Húngaro"],
+    "nl": ["Duits", "Engels", "Frans", "Spaans", "Italiaans", "Nederlands", "Portugees", "Russisch", "Japans", "Koreaans",
+           "Chinees", "Tsjechisch", "Pools", "Turks", "Zweeds", "Deens", "Noors", "Fins", "Grieks", "Hongaars"],
 }
 
 

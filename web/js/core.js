@@ -119,7 +119,7 @@ const partName = (id) => t(PART_NAMES[id]);
 const LIB_NAMES = { movies: "libMovies", tvshows: "libShows", boxsets: "libCollections", books: "audiobooks" };
 function libName(name, type) {
   const key = LIB_NAMES[type];
-  const given = key && [STRINGS.en[key], STRINGS.de[key], ...(type === "tvshows" ? ["TV Shows"] : [])];
+  const given = key && [...Object.values(STRINGS).map((s) => s[key]), ...(type === "tvshows" ? ["TV Shows"] : [])];
   return given?.includes(name) ? t(key) : name;
 }
 // Request tiles at the size they are shown (in steps of 50 px so the cache still hits):

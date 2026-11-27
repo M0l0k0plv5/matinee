@@ -579,7 +579,8 @@ class DeployTest(unittest.TestCase):
         allowed = {"web/i18n.js", "backend/core.py", "backend/playback.py", "backend/tv.py",
                    "deploy/kino.desktop", "tests/test_ui.py", "tests/test_player.py",
                    "tests/test_deploy.py", "remote/app.js",  # remote/app.js: the phone's remote, its own words
-                   "docs/handbuch.md"}  # the customers' manual, in German
+                   "docs/handbuch.md",  # the customers' manual, in German
+                   "web/i18n-more.js"}  # French, Spanish and Dutch (Dutch reads as German here)
         german = []
         for path in sorted(ROOT.rglob("*")):
             rel = path.relative_to(ROOT).as_posix()
