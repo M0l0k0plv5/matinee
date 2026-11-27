@@ -48,7 +48,7 @@
 The nightly update (optional) runs a copy of its script owned by root, in `/usr/local/libexec`; the copy in the
 checkout belongs to its user and changes with every pull, so it never runs as root.
 
-The packages (installed with `get-kino`) are checked before anything is unpacked: the manifest's signature with
+The packages (installed with `get-matinee`) are checked before anything is unpacked: the manifest's signature with
 `ssh-keygen -Y verify` against the keys in `deploy/release-signers` of the version in use (namespace `kino-release`),
 then the package's SHA-256 from the manifest; its files are unpacked with Python's `data` filter (no links out of the
 folder, no device files, no setuid bits). A signed manifest older than the version in use (by its commit's time,
@@ -57,7 +57,7 @@ version with what was fixed since (going back by hand, to a version still on the
 one. The private key belongs to whoever publishes: lost, no device takes an update any more; stolen, anyone can give
 every device any code. Keep it offline and backed up. `deploy/release-signers` therefore trusts a second, spare key
 from the start, kept only in an encrypted backup: with the main key lost, a version signed by the spare one still
-comes in (and brings a new spare); with one stolen, a version signed by the other takes it off the list. `get-kino` itself is fetched over HTTPS and trusts GitHub for its
+comes in (and brings a new spare); with one stolen, a version signed by the other takes it off the list. `get-matinee` itself is fetched over HTTPS and trusts GitHub for its
 first download.
 
 ## Wi-Fi

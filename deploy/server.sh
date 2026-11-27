@@ -3,7 +3,7 @@
 # Run as Matinee's user from the Matinee directory (install.sh offers it): ./deploy/server.sh
 #   - Jellyfin in a container (Podman, started by systemd through a Quadlet file, updated by podman-auto-update),
 #     with the graphics chip for converting videos, on port 8096 of this computer and the home network
-#   - the media in /srv/kino-media (KINO_MEDIA), Jellyfin's libraries made from the TV (backend/local_server.py)
+#   - the media in /srv/matinee-media (KINO_MEDIA), Jellyfin's libraries made from the TV (backend/local_server.py)
 #   - that folder shared on the home network by Samba ("Matinee"), for copying films onto it from a computer, under
 #     this user's name and a password of its own (shown on the TV: Settings → Movies & Shows → Put Films on This Device)
 #   - Jellyfin's startup wizard done at once, with a first user of its own: until done, whoever on the home network
@@ -14,7 +14,7 @@ set -eu
 # the system's own folders (/etc, /var, /sys, /dev) under this, for the tests (tests/test_server_sh.py); else the system's
 SYS="${KINO_SYSROOT:-}"
 USER_NAME="$(id -un)"
-MEDIA="${KINO_MEDIA:-/srv/kino-media}"
+MEDIA="${KINO_MEDIA:-/srv/matinee-media}"
 STATE="$SYS/var/lib/kino-jellyfin"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/kino"
 DISTRO="$(. "$SYS/etc/os-release" 2>/dev/null; echo "${ID:-}")"

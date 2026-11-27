@@ -15,6 +15,16 @@ all of them, and your own library as television channels with a programme guide.
 **Status:** early. In daily use on one thin client since October 2026; expect rough edges. The UI is in English and
 German.
 
+## Who it's for
+
+- You keep your films, shows and music on your own server (Jellyfin, and if you like Navidrome, Audiobookshelf,
+  Podfetch) and want one calm UI for all of it on the TV, run with a remote.
+- You would rather put a used mini PC behind the TV than an Apple TV or a Fire TV stick: no account with anyone, no
+  ads, no tracking, nothing from the cloud but the updates.
+- You set it up once, for yourself or for your family, and then it simply comes on with the TV.
+
+It is not a server (that stays Jellyfin) and not a streaming app for Netflix and the like.
+
 ## What you need
 
 - A small computer for the TV with Debian 13 (trixie) or newer, LMDE 7, Ubuntu 26.04 or newer, Raspberry Pi OS
@@ -37,10 +47,10 @@ Python 3.12 or newer.
 As the user Matinee is to run as, with a network (a cable, or Wi-Fi set up with the distribution's installer):
 
 ```sh
-curl -fsSL https://github.com/M0l0k0plv5/matinee-releases/releases/latest/download/get-kino | sh
+curl -fsSL https://github.com/M0l0k0plv5/matinee-releases/releases/latest/download/get-matinee | sh
 ```
 
-`get-kino` fetches the newest package, checks its signature and checksum, unpacks it to `~/.kino-versions` (linked as
+`get-matinee` fetches the newest package, checks its signature and checksum, unpacks it to `~/.kino-versions` (linked as
 `~/kino`) and runs `install.sh`, which asks for the sudo password. Updates come as signed packages too
 ([docs/setup.md](docs/setup.md#updates)). The rest is optional:
 

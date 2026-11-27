@@ -19,7 +19,7 @@ from helpers import CHROMIUM_ITSELF, HAVE_MPV, ROOT, temp_dir, wait_for
 class DeployTest(unittest.TestCase):
     def test_shell_script_syntax(self):
         for script in ("kino", "deploy/install.sh", "deploy/boot.sh", "deploy/harden.sh", "deploy/pair-remote.sh", "deploy/nightly-update",
-                       "deploy/diag", "deploy/check", "deploy/server.sh", "deploy/get-kino", "deploy/make-release"):
+                       "deploy/diag", "deploy/check", "deploy/server.sh", "deploy/get-matinee", "deploy/make-release"):
             r = subprocess.run(["sh", "-n", str(ROOT / script)], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, f"{script}: {r.stderr}")
 
@@ -290,7 +290,7 @@ class DeployTest(unittest.TestCase):
     def test_scripts_are_executable(self):
         for script in ("kino", "deploy/install.sh", "deploy/boot.sh", "deploy/harden.sh", "deploy/pair-remote.sh", "deploy/nightly-update",
                        "deploy/diag", "deploy/check", "set-password", "server.py", "display-mode", "deploy/server.sh",
-                       "deploy/get-kino", "deploy/make-release", "deploy/support-inbox"):
+                       "deploy/get-matinee", "deploy/make-release", "deploy/support-inbox"):
             self.assertTrue(os.access(ROOT / script, os.X_OK), script)
 
     def render_service(self):

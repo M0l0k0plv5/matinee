@@ -123,7 +123,7 @@ Bluetooth) and Start. Back goes to the step before. Once through (or left with L
 
 ## Updates
 
-**Packages** (installed with `get-kino`): each version is a folder in `~/.kino-versions`, named by its commit, and
+**Packages** (installed with `get-matinee`): each version is a folder in `~/.kino-versions`, named by its commit, and
 `~/kino` a link to the one in use. An update fetches the newest release's `manifest.json` and its signature from
 GitHub, checks the signature against `deploy/release-signers` of the version in use (`ssh-keygen -Y verify`), then the
 package's SHA-256, unpacks it beside the others and switches the link at once; the last three versions stay for going

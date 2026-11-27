@@ -42,7 +42,7 @@ Hast du ein Gerät ohne Matinee, installierst du zuerst Linux, zum Beispiel Debi
 mit Matinee laufen soll, im Terminal ein:
 
 ```sh
-curl -fsSL https://github.com/M0l0k0plv5/matinee-releases/releases/latest/download/get-kino | sh
+curl -fsSL https://github.com/M0l0k0plv5/matinee-releases/releases/latest/download/get-matinee | sh
 ```
 
 Das lädt Matinee, prüft die Signatur und richtet alles ein. Dabei fragt es einmal nach deinem Passwort. Gegen Ende fragt

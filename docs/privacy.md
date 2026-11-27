@@ -22,5 +22,5 @@ What it knows (the servers, sign-ins, settings, what was watched where) stays on
 | Jellyfin on this device | Docker Hub (`docker.io`) for its image, once a day; the metadata providers Jellyfin uses (TMDB, MusicBrainz, …) for titles, posters and descriptions | only with `deploy/server.sh` | the IP address, and which titles are looked up (Jellyfin's own, see its documentation) |
 | Tailscale | Tailscale's coordination servers | only if installed, under your own account | as Tailscale describes it |
 
-The installer (`install.sh`, `get-kino`) fetches packages from the distribution's mirrors and, on Fedora and openSUSE
-if chosen, RPM Fusion or Packman; `get-kino` fetches Matinee from GitHub.
+The installer (`install.sh`, `get-matinee`) fetches packages from the distribution's mirrors and, on Fedora and openSUSE
+if chosen, RPM Fusion or Packman; `get-matinee` fetches Matinee from GitHub.

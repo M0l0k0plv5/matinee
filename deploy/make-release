@@ -1,6 +1,6 @@
 #!/bin/sh
 # Publishes the version committed and pushed on main as Matinee's newest package, for the devices installed from
-# packages (backend/release.py, deploy/get-kino): built from HEAD, its manifest signed with the release key, and all of
+# packages (backend/release.py, deploy/get-matinee): built from HEAD, its manifest signed with the release key, and all of
 # it put on GitHub as a release of the packages' own repository (needs gh, signed in).
 #   deploy/make-release            build and publish
 #   deploy/make-release --dry-run  build only, into a folder it names
@@ -32,4 +32,4 @@ notes="$(git -C "$DIR" log -1 --format=%s HEAD)"
 gh release create "$tag" "$out"/* --repo "$REPO" --title "Matinee $tag" --notes "$notes" --latest
 rm -rf "$out"
 echo "Published: devices take it at their next look (the settings, or at night)."
-echo "Install anew: curl -fsSL https://github.com/$REPO/releases/latest/download/get-kino | sh"
+echo "Install anew: curl -fsSL https://github.com/$REPO/releases/latest/download/get-matinee | sh"

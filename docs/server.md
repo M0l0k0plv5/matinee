@@ -9,7 +9,7 @@ Matinee plays from your own servers. Without one yet, there are two ways to one.
 - **Jellyfin in a container** (Podman, started by systemd from `/etc/containers/systemd/kino-jellyfin.container`,
   a new image once a day by `podman-auto-update.timer`), on port 8096, with the graphics chip for converting videos.
   Its data is in `/var/lib/kino-jellyfin`.
-- **The media folder** `/srv/kino-media` (or `KINO_MEDIA`), Jellyfin sees it as `/media`, read only.
+- **The media folder** `/srv/matinee-media` (or `KINO_MEDIA`), Jellyfin sees it as `/media`, read only.
 - **A Samba share** "Matinee" of that folder on the home network, for this user with a password of its own (not the
   login's), kept in `~/.config/kino/share.json` and shown on the TV.
 - On Fedora and openSUSE, firewalld opened for Samba, 8096/tcp and Jellyfin's discovery (7359/udp).

@@ -1,4 +1,4 @@
-"""Jellyfin on the TV computer itself (deploy/server.sh: a container, the media in /srv/kino-media, shared on the
+"""Jellyfin on the TV computer itself (deploy/server.sh: a container, the media in /srv/matinee-media, shared on the
 network by Samba): seen from the first start's Jellyfin step, and set up from there without Jellyfin's own web pages
 (its startup wizard through its API, the libraries for films and shows, then Matinee signed in to it like any other)."""
 import json
@@ -13,7 +13,7 @@ from . import core
 from .jellyfin_api import jf_device_header, setup_jellyfin
 
 LOCAL_JF = os.environ.get("KINO_LOCAL_JELLYFIN", "http://127.0.0.1:8096")
-LOCAL_MEDIA = Path(os.environ.get("KINO_MEDIA", "/srv/kino-media"))  # on this computer
+LOCAL_MEDIA = Path(os.environ.get("KINO_MEDIA", "/srv/matinee-media"))  # on this computer
 LOCAL_MEDIA_IN_SERVER = os.environ.get("KINO_MEDIA_IN_SERVER", "/media")  # the same folder as Jellyfin's container sees it
 LOCAL_SHARE_FILE = core.CONF_DIR / "share.json"  # the Samba share, written by deploy/server.sh: {"name", "user", "password"}
 # Jellyfin's startup wizard is open to the whole home network until done, and whoever does it first is the server's

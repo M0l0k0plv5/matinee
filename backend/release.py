@@ -253,7 +253,7 @@ def changes(repo, ref="HEAD", n=CHANGES_LISTED):
 def build(repo, out, key, base_url="", manifest_url=""):
     """The package of the repository's HEAD and its signed manifest in `out`: kino-<commit>.tar.gz, manifest.json and
     manifest.json.sig. The archive's address in the manifest is base_url + its name (relative without one). With
-    manifest_url also get-kino, the installer, with that address and the release key's signers in it."""
+    manifest_url also get-matinee, the installer, with that address and the release key's signers in it."""
     out.mkdir(parents=True, exist_ok=True)
     commit = git_of(repo, "rev-parse", "HEAD").strip()
     at = int(git_of(repo, "log", "-1", "--format=%ct", "HEAD").strip())
@@ -269,7 +269,7 @@ def build(repo, out, key, base_url="", manifest_url=""):
             tar.extractall(tree, filter="data")
         (tree / ".from-kino").unlink(missing_ok=True)  # which Matinee commit it was made of (deploy/make-pro): not the devices'
         (tree / RELEASE_FILE).write_text(json.dumps(release, indent=1) + "\n")
-        name = f"kino-{commit[:12]}.tar.gz"
+        name = f"matinee-{commit[:12]}.tar.gz"
         with tarfile.open(out / name, "w:gz") as tar:
             for p in sorted(tree.iterdir()):
                 tar.add(p, arcname=p.name)
@@ -282,12 +282,12 @@ def build(repo, out, key, base_url="", manifest_url=""):
                    check=True, capture_output=True)
     if manifest_url:
         signers = git_of(repo, "show", "HEAD:deploy/release-signers").strip()
-        get_url = manifest_url.rsplit("/", 1)[0] + "/get-kino"
-        text = git_of(repo, "show", "HEAD:deploy/get-kino")
+        get_url = manifest_url.rsplit("/", 1)[0] + "/get-matinee"
+        text = git_of(repo, "show", "HEAD:deploy/get-matinee")
         for k, v in (("@MANIFEST_URL@", manifest_url), ("@SIGNERS@", signers), ("@GET_URL@", get_url)):
             text = text.replace(k, v)
-        (out / "get-kino").write_text(text)
-        (out / "get-kino").chmod(0o755)
+        (out / "get-matinee").write_text(text)
+        (out / "get-matinee").chmod(0o755)
     return out / name
 
 

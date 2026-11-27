@@ -115,8 +115,10 @@ if [ -x /snap/bin/chromium ] && { [ -z "$found" ] || case "$found" in /snap/*) t
   [ "${1:-}" != "--session" ] || PROFILE="${XDG_RUNTIME_DIR:-/tmp}/snap.chromium/kino-chromium"
 fi
 # --disable-background-networking: none of Chromium's own services behind the page (push messages, component updates,
-# field trials): nothing a kiosk uses, and their failures ("DEPRECATED_ENDPOINT") were among Matinee's lines
-FLAGS="--noerrdialogs --disable-infobars --no-first-run --autoplay-policy=no-user-gesture-required --ozone-platform=wayland --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=Vulkan,Translate --disk-cache-size=104857600 --disable-background-networking"
+# field trials): nothing a kiosk uses, and their failures ("DEPRECATED_ENDPOINT") were among Matinee's lines.
+# --log-level=3: only Chromium's fatal errors in the journal; its everyday ones (a snap's AppArmor refusing D-Bus calls,
+# no UPower on a TV computer, dozens at each start) looked like Matinee failing to whoever reads the log
+FLAGS="--noerrdialogs --disable-infobars --no-first-run --autoplay-policy=no-user-gesture-required --ozone-platform=wayland --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=Vulkan,Translate --disk-cache-size=104857600 --disable-background-networking --log-level=3"
 if [ "$(uname)" = Darwin ]; then
   # macOS: Chromium from /Applications (e.g. brew install --cask ungoogled-chromium), no Wayland
   for c in "${KINO_CHROMIUM:-}" /Applications/Chromium.app/Contents/MacOS/Chromium \

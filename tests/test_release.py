@@ -1,4 +1,4 @@
-"""Updates from signed packages (backend/release.py, deploy/get-kino): built, checked, installed, gone back from."""
+"""Updates from signed packages (backend/release.py, deploy/get-matinee): built, checked, installed, gone back from."""
 import functools
 import http.server
 import json
@@ -78,7 +78,7 @@ class PackageTest(unittest.TestCase):
         cls.repo = cls.tmp / "repo"
         cls.repo.mkdir()
         working_tree_repo(cls.repo)
-        # its versions trust the test's key, as Matinee's trust Matinee's (deploy/release-signers, also in get-kino)
+        # its versions trust the test's key, as Matinee's trust Matinee's (deploy/release-signers, also in get-matinee)
         shutil.copy(cls.signers, cls.repo / "deploy" / "release-signers")
         git(cls.repo, "commit", "-qam", "The test's key")
 
@@ -196,18 +196,18 @@ class PackageTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which("sha256sum") and shutil.which("curl"), "needs sha256sum and curl")
     def test_get_kino_installs_the_newest(self):
         m = self.publish(manifest_url=self.server.url)
-        script = (self.srv_dir / "get-kino").read_text()
+        script = (self.srv_dir / "get-matinee").read_text()
         self.assertNotIn("@SIGNERS@", script)
         self.assertIn(self.signers.read_text().split()[-1], script, "the key it trusts in it")
         installed = self.d / "installed"
-        r = subprocess.run(["sh", str(self.srv_dir / "get-kino")], capture_output=True, text=True, timeout=120,
+        r = subprocess.run(["sh", str(self.srv_dir / "get-matinee")], capture_output=True, text=True, timeout=120,
                            env=dict(os.environ, HOME=str(self.d / "home"), KINO_INSTALL=f"touch {installed}"))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(release.head(self.link), m["commit"])
         self.assertTrue(installed.exists(), "then deploy/install.sh")
         archive = self.srv_dir / m["archive"]
         archive.write_bytes(archive.read_bytes() + b"\0")
-        r = subprocess.run(["sh", str(self.srv_dir / "get-kino")], capture_output=True, text=True, timeout=120,
+        r = subprocess.run(["sh", str(self.srv_dir / "get-matinee")], capture_output=True, text=True, timeout=120,
                            env=dict(os.environ, HOME=str(self.d / "home2"), KINO_INSTALL="true"))
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("not the one the list names", r.stderr)
