@@ -13,7 +13,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 
-from . import core, diagnose, jellyfin_api, playback, display, services, system
+from . import core, diagnose, jellyfin_api, phone_remote, playback, display, services, system
 from .core import (ALLOWED_HOSTS, ALLOWED_ORIGINS, BOOT_CLOCK, conf, DISK_ERRORS, PROXIED, save_state,
     state, UI_SECRET, VERSION, WEB)
 from .jellyfin_api import conf_changing, jf, log_failure, ready, reload_token, setup_jellyfin
