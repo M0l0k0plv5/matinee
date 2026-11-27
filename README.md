@@ -42,6 +42,19 @@ It is not a server (that stays Jellyfin) and not a streaming app for Netflix and
 The UI is a web app running full screen in Chromium under `cage`; mpv plays the videos. The backend needs nothing but
 Python 3.12 or newer.
 
+## Tested on
+
+| System | How | Last checked |
+|---|---|---|
+| Arch Linux on a Lenovo ThinkCentre M710q (Intel, 7th generation) | in daily use on a TV | November 2026 |
+| Ubuntu 26.04 (arm64) | fresh install with `get-matinee`, in a VM | November 2026 |
+| Debian 13 (arm64) | fresh install with `get-matinee`, in a VM | November 2026 |
+| Fedora 45 (arm64) | fresh install with `get-matinee`, in a VM | November 2026 |
+| openSUSE Tumbleweed (arm64) | fresh install with `get-matinee`, in a VM | November 2026 |
+
+The others in the list above install their packages in tests, but have not run Matinee on a real screen. A
+Raspberry Pi 5 should work (the VMs are arm64 too); whether its graphics chip plays every video smoothly is untested.
+
 ## Install
 
 As the user Matinee is to run as, with a network (a cable, or Wi-Fi set up with the distribution's installer):
