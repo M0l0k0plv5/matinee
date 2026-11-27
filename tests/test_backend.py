@@ -136,10 +136,12 @@ class BackendTest(unittest.TestCase):
         self.assertLessEqual(self.mock.connections - before, 2, "30 requests, not 30 connections")
 
     def test_only_the_ui_calls_reach_jellyfin(self):
-        before = len(self.mock.auth_seen)
+        before = len(self.mock.requests)
         for path in ("/jf/System/Logs", "/jf/Auth/Keys", "/jf/Users", "/jf/Items/../System/Info", "/jf/Sessions"):
             self.assertEqual(self.backend.request(path)[0], 403, path)
-        self.assertEqual(len(self.mock.auth_seen), before, "none of them sent to Jellyfin with the token")
+        # none of them sent on to Jellyfin (the backend's own calls, from its loops, may come meanwhile)
+        sent = [p for p in self.mock.requests[before:] if p.split("?")[0] in ("/System/Logs", "/Auth/Keys", "/Users", "/Sessions", "/System/Info")]
+        self.assertEqual(sent, [], "none of them sent to Jellyfin")
         self.assertEqual(self.backend.request("/jf/Shows/NextUp?userId=u1")[0], 200)
 
     def test_server_errors_are_passed_through(self):
