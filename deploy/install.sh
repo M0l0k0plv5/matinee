@@ -159,6 +159,17 @@ if [ -f /etc/bluetooth/main.conf ]; then
 fi
 sudo systemctl enable --now bluetooth.service 2>/dev/null || echo "   (no Bluetooth adapter yet: plug one in, then run this again)"
 # speakers and headphones in their stereo sound only: Matinee puts deploy/wireplumber-bluetooth.conf in place itself
+# UPower asks a Bluetooth remote for its battery every 30 seconds (a HID GET_REPORT): the remote is woken from its
+# power saving each time, and the Bluetooth chip, busy with that, drops a moment of the sound going to a Bluetooth
+# speaker: a crackle every 30 seconds. A TV computer has no battery of its own for UPower to watch, so it is switched
+# off there; masked, as Chromium would start it again over D-Bus. On a computer with a battery (a laptop) it stays.
+own_battery=""
+for supply in /sys/class/power_supply/*; do
+  [ "$(cat "$supply/type" 2>/dev/null)" = Battery ] && [ "$(cat "$supply/scope" 2>/dev/null)" != Device ] && own_battery=1
+done
+if [ -z "$own_battery" ] && systemctl cat upower.service >/dev/null 2>&1; then
+  sudo systemctl mask --now upower.service >/dev/null 2>&1 && echo "   UPower switched off (it woke the remote every 30 s: crackles on a Bluetooth speaker)"
+fi
 
 echo "==> Wi-Fi from the TV (NetworkManager)"
 # Matinee joins a wireless network from its settings and its first sign-in through NetworkManager. Another service that
